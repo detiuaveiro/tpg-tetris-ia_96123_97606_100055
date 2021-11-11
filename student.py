@@ -173,18 +173,25 @@ def get_possible_placements(piece_shape, floor):
             lowest_pos = [(x, max( y for mx,y in pos if mx==x )) for x in set( x for x,_ in pos )]
 
             
-        
-
-    
     return
 
 
-# this will serve as a heuristic i suppose
+# will be used to choose the best possible placement
 def evaluate_placement(placement, game, strategy):
     """ Returns a placement's calculated score according to strategy. Higher score means better placement """
 
+    
+    line_clear_value = 2
+    tetris_value = 3
+    holes_value = 1
+    height_value = 1
+    future_value = 0
+    
+
     # Set value of criteria according to strategy
-    # ...
+    if strategy == "clear_lines":
+        tetris_value = 0
+        line_clear_value = 2
 
 
     new_game = game + placement     
@@ -194,19 +201,21 @@ def evaluate_placement(placement, game, strategy):
 
     highest_point = min([y for _, y in new_floor ])
     height_difference_score = highest_point - max([y for _, y in new_floor])
-
-
-    # TODO
     for _, y in new_floor:
-        if highest_point -
+        height_difference_score += y - highest_point
 
 
-    return
+    # determine possible placements for the next piece and evaluate them,
+    # a sort of recursion, with a depth limit
+    # future_piece_score = 0
 
 
- 
+    # calculate score
+    score = lines_cleared * line_clear_value
+    score -= n_holes * holes_value
+    score -= height_difference_score * height_value
 
-
+    return score
 
 
 
