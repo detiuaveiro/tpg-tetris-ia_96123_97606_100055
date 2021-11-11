@@ -145,32 +145,53 @@ def get_possible_placements(piece_shape, floor):
         pos = [[x-minX+1,y-minY] for (x,y) in pos]
         # pos = posicoes na extrema esquerda e no topo ☭ 
 
-        while maxX <= WIDTH:
+        while maxX <= WIDTH: # da esquerda para a direita
+            inside_pos = deepcopy(pos)
 
-            xs = [None] * WIDTH
+            hadContact = False
+
+            while not hadContact:
+                for j in range(maxX): # para cada floor ate o x maximo
+                    floor_y = floor[j]
+                    for (x,y) in inside_pos: # para cada posicao da peca
+                        if x == j+1 and floor_y == y: # ocorreu contato dessa posicao com o chao
+                            lst.append([[posx, posy - 1] for (posx, posy) in inside_pos]) # adicionar as pos com y - 1
+                            hadContact = True
+                            break
+                    if hadContact:
+                        break
+                inside_pos = [[x, y+1] for (x,y) in inside_pos] # se nao houve contato, vamos descer a peca
             
-            for (x,y) in pos:
-                if not xs[x-1] or y > xs[x-1]:
-                    xs[x-1] = y
-
-            floor_xs = []
-            piece_xs = [] # ignora os None
-            for j in range(len(xs)):
-                if not xs[j]:
-                    continue
+            pos = [[x+1,y] for (x,y) in pos]
+        copy_shape.rotate()
                 
-                floor_xs.append(j+1)
-                piece_xs.append(xs[j])
-
-            floor_values = []
-
-            for (j,k) in floor:
-                if j in floor_xs:
-                    floor_values.append(k)
+    return lst
 
 
+            # xs = [None] * WIDTH
+            
+            # for (x,y) in pos:
+            #     if not xs[x-1] or y > xs[x-1]:
+            #         xs[x-1] = y
 
-            lowest_pos = [(x, max( y for mx,y in pos if mx==x )) for x in set( x for x,_ in pos )]
+            # floor_xs = []
+            # piece_xs = [] # ignora os None
+            # for j in range(len(xs)):
+            #     if not xs[j]:
+            #         continue
+                
+            #     floor_xs.append(j+1)
+            #     piece_xs.append(xs[j])
+
+            # floor_values = []
+
+            # for (j,k) in floor:
+            #     if j in floor_xs:
+            #         floor_values.append(k)
+
+
+
+            # lowest_pos = [(x, max( y for mx,y in pos if mx==x )) for x in set( x for x,_ in pos )]
 
             
     return
