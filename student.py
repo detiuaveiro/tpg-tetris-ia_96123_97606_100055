@@ -49,15 +49,19 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                         print("Peca Identificada:", curr_shape)
 
                     placements = get_possible_placements(curr_shape, floor)
+                    print("placements found:")
 
                     best_placement = None
 
                     for placement in placements:
                         score = evaluate_placement(placement, state["game"], "clear_lines")
+                        print("    "+ str(placement)+", score: " + str(score))
                         if not best_placement or best_placement[1] < score:
                             best_placement = (placement, score)
+                    print("best placement: " + str(best_placement))
                     
                     inputs = determine_moves(curr_shape, best_placement[0])
+                    print("inputs to perform: " + str(inputs))
 
 
                 #options = ["a","w","d"]
@@ -70,8 +74,8 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                 # END OF MAGIC ALGORITHM
 
                 else:
-                    key = inputs.pop(0)
-                    print(f"sent '{key}'")
+                    key = inputs.pop(0) if inputs else ""
+                    #print(f"sent '{key}'")
 
                     # Send key to game server
                     await websocket.send(
@@ -176,7 +180,7 @@ def get_possible_placements(piece_shape, floor):
                     floor_y = floor[j]
                     for (x,y) in inside_pos: # para cada posicao da peca
                         if x == j+1 and floor_y == y: # ocorreu contato dessa posicao com o chao
-                            print("Found a placement")
+                            #print("Found a placement")
                             lst.append([[posx, posy - 1] for (posx, posy) in inside_pos]) # adicionar as pos com y - 1
                             hadContact = True
                             break
@@ -185,6 +189,7 @@ def get_possible_placements(piece_shape, floor):
                 inside_pos = [[x, y+1] for (x,y) in inside_pos] # se nao houve contato, vamos descer a peca
             
             pos = [[x+1,y] for (x,y) in pos]
+            maxX += 1
         copy_shape.rotate()
                 
     return lst
@@ -240,9 +245,9 @@ def evaluate_placement(placement, game, strategy):
     new_floor = get_floor(new_game)
     n_holes = get_holes(new_game, new_floor)
 
-    highest_point = min([y for _, y in new_floor ])
-    height_difference_score = highest_point - max([y for _, y in new_floor])
-    for _, y in new_floor:
+    highest_point = min(new_floor)
+    height_difference_score = highest_point - max(new_floor)
+    for y in new_floor:
         height_difference_score += y - highest_point
 
 
