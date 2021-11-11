@@ -1,0 +1,20 @@
+grid: bordas laterais e inferior da área de jogo
+game: conjunto de tiles ocupados
+
+clear_rows():
+	limpa rows e acrescenta ao score
+
+
+
+
+def valid:
+	False se qualquer parte da peça está no grid ou se qualquer parte da peça está no jogo
+	
+	
+Possiveis melhorias ao engine:
+- bom rng (deve sair todas as unique pieces antes de sair um repeat)
+- spin nos dois sentidos
+- algum tempo para mexer a peça antes de dar lock (pode aumentar complexidade)
+- possibilitar t-spins
+- valorizar t-spins
+
