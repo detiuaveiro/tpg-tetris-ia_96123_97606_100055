@@ -22,6 +22,7 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
 
         previous_game = None # to decides if a piece is new or not
         curr_piece = []
+        inputs = []
 
 
         while True:
@@ -34,35 +35,53 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                 is_new_piece = state["game"] != previous_game
 
                 if is_new_piece:
+                    print("Calculating best move...")
+
                     previous_game = state["game"]
                     curr_piece = state["piece"]
                     floor = get_floor(previous_game)
                 
-                if not curr_piece:
-                    curr_piece = state["piece"]
-                    
-                if curr_piece:
-                    curr_shape = identify_shape(curr_piece)
-                    print("Peca Identificada:", curr_shape)
-                            
+                    if not curr_piece:
+                        curr_piece = state["piece"]
+                        
+                    if curr_piece:
+                        curr_shape = identify_shape(curr_piece)
+                        print("Peca Identificada:", curr_shape)
 
-                options = ["a","w","d"]
+                    placements = get_possible_placements(curr_shape, floor)
+
+                    best_placement = None
+
+                    for placement in placements:
+                        score = evaluate_placement(placement, state["game"], "clear_lines")
+                        if not best_placement or best_placement[1] < score:
+                            best_placement = (placement, score)
+                    
+                    inputs = determine_moves(curr_shape, best_placement[0])
+
+
+                #options = ["a","w","d"]
                 #key = random.choice(options)
-                key = "a"
+                #key = "a"
 
                 # MAGIC ALGORITHM TO KNOW THE RIGHT KEY
-                print("state:", state)
-                print("get_floor", floor)    
+                #print("state:", state)
+                #print("get_floor", floor)    
                 # END OF MAGIC ALGORITHM
-            
-                # Send key to game server
-                await websocket.send(
-                        json.dumps({"cmd": "key", "key": key})
-                    ) 
+
+                else:
+                    key = inputs.pop(0)
+                    print(f"sent '{key}'")
+
+                    # Send key to game server
+                    await websocket.send(
+                            json.dumps({"cmd": "key", "key": key})
+                        ) 
 
             except websockets.exceptions.ConnectionClosedOK:
                 print("Server has cleanly disconnected us")
                 return
+
 
 def get_floor(game):
     """ returns an array that contains the y's values on the game for each x """
@@ -148,13 +167,16 @@ def get_possible_placements(piece_shape, floor):
         while maxX <= WIDTH: # da esquerda para a direita
             inside_pos = deepcopy(pos)
 
+
             hadContact = False
 
             while not hadContact:
+
                 for j in range(maxX): # para cada floor ate o x maximo
                     floor_y = floor[j]
                     for (x,y) in inside_pos: # para cada posicao da peca
                         if x == j+1 and floor_y == y: # ocorreu contato dessa posicao com o chao
+                            print("Found a placement")
                             lst.append([[posx, posy - 1] for (posx, posy) in inside_pos]) # adicionar as pos com y - 1
                             hadContact = True
                             break
@@ -191,10 +213,8 @@ def get_possible_placements(piece_shape, floor):
 
 
 
-            # lowest_pos = [(x, max( y for mx,y in pos if mx==x )) for x in set( x for x,_ in pos )]
-
-            
-    return
+            # lowest_pos = [(x, max( y for mx,y in pos if mx==x )) for x in set( x for x,_ in pos )]       
+    #return
 
 
 # will be used to choose the best possible placement
