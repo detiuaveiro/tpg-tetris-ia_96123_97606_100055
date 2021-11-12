@@ -13,6 +13,8 @@ import random
 WIDTH = 8
 HEIGHT = 30
 
+SPEED_RUN = True
+
 
 async def agent_loop(server_address="localhost:8000", agent_name="student"):
     async with websockets.connect(f"ws://{server_address}/player") as websocket:
@@ -62,6 +64,8 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                     print("best placement: " + str(best_placement))
                     
                     inputs = determine_moves(curr_shape, best_placement[0])
+                    if SPEED_RUN: inputs.append("s")
+
                     is_new_piece = False
                     print("inputs to perform: " + str(inputs))
 
@@ -105,23 +109,10 @@ def get_floor(game):
 
 def get_holes(game, floor):
     """ Get number of holes in game state """
-
     #print("get_holes - floor:", floor)
     #print("get_holes - game:", game)
-
-    #n_holes = 0
-    #for x in range(len(floor)):
-    #    for y in range(29, floor[x]):
-    #        if [x,y] not in game:
-    #            # there is hole
-    #            n_holes += 1
-
-
-
-    #Counter(y for _, y in game).most_common()
-
     n_holes = sum( HEIGHT - y for y in floor ) - len(game)
-    print("get_holes - number:", n_holes)
+    #print("get_holes - number:", n_holes)
     return n_holes
 
 def identify_shape(piece):
@@ -162,11 +153,16 @@ def identify_shape(piece):
 
 
 
+# TODO IMPROVEMENT: only one command can be sent per frame, meaning that moving or rotating a piece will also
+# drop it by 1, so take that into account when determining positions, as there may not be enough frames to
+# perform the action
+
 def get_possible_placements(piece_shape, floor):
     """ Returns all possible placements for the given piece 
     Returns a list of coordinate lists."""
     lst = []
     copy_shape : Shape = deepcopy(piece_shape)
+
 
     for i in range(len(copy_shape.plan)): # para cada rotation
         pos = copy_shape.positions 
@@ -214,57 +210,29 @@ def get_possible_placements(piece_shape, floor):
     return lst
 
 
-            # xs = [None] * WIDTH
-            
-            # for (x,y) in pos:
-            #     if not xs[x-1] or y > xs[x-1]:
-            #         xs[x-1] = y
-
-            # floor_xs = []
-            # piece_xs = [] # ignora os None
-            # for j in range(len(xs)):
-            #     if not xs[j]:
-            #         continue
-                
-            #     floor_xs.append(j+1)
-            #     piece_xs.append(xs[j])
-
-            # floor_values = []
-
-            # for (j,k) in floor:
-            #     if j in floor_xs:
-            #         floor_values.append(k)
-
-
-
-            # lowest_pos = [(x, max( y for mx,y in pos if mx==x )) for x in set( x for x,_ in pos )]       
-    #return
-
 
 # will be used to choose the best possible placement
 def evaluate_placement(placement, game, strategy):
     """ Returns a placement's calculated score according to strategy. Higher score means better placement """
 
     
-    line_clear_value = 2
+    line_clear_value = 3
     tetris_value = 3
-    holes_value = 2
-    height_value = 1
+    holes_value = 5
+    height_value = 2
     future_value = 0
     
 
     # Set value of criteria according to strategy
     if strategy == "clear_lines":
         tetris_value = 0
-        line_clear_value = 2
+        line_clear_value = 10
 
 
     new_game = game + placement     
     lines_cleared, new_game = count_lines_cleared(new_game)
     new_floor = get_floor(new_game)
     n_holes = get_holes(new_game, new_floor)
-
-    #print(n_holes)
 
     highest_point = min(new_floor)
     height_difference_score = highest_point - max(new_floor)
@@ -276,6 +244,9 @@ def evaluate_placement(placement, game, strategy):
     # a sort of recursion, with a depth limit
     # future_piece_score = 0
 
+    print(f"EVALUATE - lines_cleared: {lines_cleared}, after multiplier: {lines_cleared*line_clear_value}")
+    print(f"EVALUATE - n_holes: {n_holes}, after multiplier: {n_holes*holes_value}")
+    print(f"EVALUATE - height_difference_score: {height_difference_score}, after multiplier: {height_difference_score*height_value}")
 
     # calculate score
     score = lines_cleared * line_clear_value
@@ -292,7 +263,7 @@ def count_lines_cleared(game):
     new_game = game.copy()
 
     for item, count in sorted(Counter(y for _, y in game).most_common()):
-        if count == HEIGHT:
+        if count == WIDTH:
             new_game = [
                 (x, y + 1) if y < item else (x, y)
                 for (x, y) in game
