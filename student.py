@@ -14,6 +14,7 @@ WIDTH = 8
 HEIGHT = 30
 
 SPEED_RUN = True
+LOOK_AHEAD = 1
 
 
 async def agent_loop(server_address="localhost:8000", agent_name="student"):
@@ -56,8 +57,13 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
 
                     best_placement = None
 
+                    next_pieces = state["next_pieces"]
+
+                    for i in range(LOOK_AHEAD):
+                        print("Next Piece", i+1, "=", identify_shape(next_pieces[i], output=True))
+
                     for placement in placements:
-                        score = evaluate_placement(placement, state["game"], "clear_lines")
+                        score = evaluate_placement(placement, state["game"], "clear_lines", next_pieces)
                         print("    "+ str(placement)+", score: " + str(score))
                         if not best_placement or best_placement[1] < score:
                             best_placement = (placement, score)
@@ -68,6 +74,7 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
 
                     is_new_piece = False
                     print("inputs to perform: " + str(inputs))
+
 
 
                 if state["piece"] is None:
@@ -115,7 +122,7 @@ def get_holes(game, floor):
     #print("get_holes - number:", n_holes)
     return n_holes
 
-def identify_shape(piece):
+def identify_shape(piece, output = False):
     """ returns what shape the points represent """
     
     print("Input Peca:", piece)
@@ -123,31 +130,46 @@ def identify_shape(piece):
     if piece[0][0] == piece[1][0] == piece[2][0] < piece[3][0]:
         shape = Shape(L)
         shape.set_pos(piece[0][0] - 2, piece[0][1] - 1)
+        if output:
+            print("Output: L")
     
     if piece[0][0] == piece[2][0] == piece[3][0] < piece[1][0]:
         shape = Shape(J)
         shape.set_pos(piece[0][0] - 2, piece[0][1] - 1)
+        if output:
+            print("Output: J")
  
     if piece[0][0] < piece[1][0] < piece[2][0] < piece[3][0]:
         shape = Shape(I)
         shape.set_pos(piece[0][0], piece[0][1] - 1)
+        if output:
+            print("Output: I")
 
     if piece[0][0] == piece[2][0] < piece[1][0] == piece[3][0]:
         shape = Shape(O)
         shape.set_pos(piece[0][0] - 1, piece[0][1] - 2)
+        if output:
+            print("Output: O")
     
     if piece[0][0] == piece[2][0] > piece[1][0] == piece[3][0]:
         shape = Shape(Z)
         shape.set_pos(piece[0][0] - 2, piece[0][1] - 1)
+        if output:
+            print("Output: Z")
 
     if piece[0][0] == piece[1][0] < piece[2][0] == piece[3][0]:
         shape = Shape(S)
         shape.set_pos(piece[0][0] - 2, piece[0][1] - 1)
+        if output:
+            print("Output: S")
 
     if piece[0][0] == piece[1][0] == piece[3][0] < piece[2][0]:
         shape = Shape(T)
         shape.set_pos(piece[0][0] - 2, piece[0][1] - 1)
+        if output:
+            print("Output: T")
 
+    
 
     return shape
 
@@ -212,7 +234,7 @@ def get_possible_placements(piece_shape, floor):
 
 
 # will be used to choose the best possible placement
-def evaluate_placement(placement, game, strategy):
+def evaluate_placement(placement, game, strategy, next_pieces, look_ahead_counter=0):
     """ Returns a placement's calculated score according to strategy. Higher score means better placement """
 
     # incentives
@@ -224,6 +246,9 @@ def evaluate_placement(placement, game, strategy):
     height_value = 2
     deep_pits_value = 2
 
+    #others
+    # safe_ahead_value = 100
+    next_piece_ahead_value = 0.5  
 
     future_value = 0
     
@@ -253,10 +278,50 @@ def evaluate_placement(placement, game, strategy):
     # a sort of recursion, with a depth limit
     # future_piece_score = 0
 
-    print(f"EVALUATE - lines_cleared: {lines_cleared}, after multiplier: {lines_cleared*line_clear_value}")
-    print(f"EVALUATE - n_holes: {n_holes}, after multiplier: {n_holes*holes_value}")
-    print(f"EVALUATE - height_difference_score: {height_difference_score}, after multiplier: {height_difference_score*height_value}")
-    print(f"EVALUATE - deep_pits_score: {deep_pits}, after multiplier: {deep_pits*deep_pits_value}")
+    ## Look Ahead
+    # safe_ahead = False
+
+    best_next_piece_placement = None
+
+    if look_ahead_counter < LOOK_AHEAD:
+        next_piece = identify_shape(next_pieces[look_ahead_counter])
+        next_piece_placements = get_possible_placements(next_piece, new_floor)
+
+        for next_piece_placement in next_piece_placements:
+            next_piece_score = evaluate_placement(next_piece_placement, new_game, "clear_lines", next_pieces, look_ahead_counter=look_ahead_counter+1)
+
+            if not best_next_piece_placement or best_next_piece_placement[1] < next_piece_score:
+                best_next_piece_placement = (next_piece_placement, next_piece_score)
+
+        # obter qual das jogadas atuais resulta em um melhor score da next_piece
+
+
+
+    # for placement in placements:
+    #     score = evaluate_placement(placement, state["game"], "clear_lines", next_pieces)
+    #     print("    "+ str(placement)+", score: " + str(score))
+    #     if not best_placement or best_placement[1] < score:
+    #         best_placement = (placement, score)
+    # print("best placement: " + str(best_placement))
+
+
+    # for i in range(LOOK_AHEAD):
+    #     next_piece = identify_shape(next_pieces[i])
+    #     next_piece_placements = get_possible_placements(next_piece, new_floor)
+        
+    #     for next_piece_placement in next_piece_placements:
+    #         if safe_landing(new_game, new_floor, next_piece_placement):
+    #             # se alguma posicao da proxa peca for safe, ent podemos por aqui
+    #             safe_ahead = True
+                
+    if best_next_piece_placement:
+        print(f"EVALUATE - lines_cleared: {lines_cleared}, after multiplier: {lines_cleared*line_clear_value}")
+        print(f"EVALUATE - n_holes: {n_holes}, after multiplier: {n_holes*holes_value}")
+        print(f"EVALUATE - height_difference_score: {height_difference_score}, after multiplier: {height_difference_score*height_value}")
+        print(f"EVALUATE - deep_pits_score: {deep_pits}, after multiplier: {deep_pits*deep_pits_value}")
+        # print(f"EVALUATE - safe_ahead: {safe_ahead}, after multiplies: {safe_ahead * safe_ahead_value} ")
+        print(f"EVALUATE - next_piece_best_score: {best_next_piece_placement[1]}, after multiplies: {next_piece_ahead_value * best_next_piece_placement[1]} ")
+
 
 
     # calculate score
@@ -264,6 +329,9 @@ def evaluate_placement(placement, game, strategy):
     score -= n_holes * holes_value
     score -= height_difference_score * height_value
     score -= (deep_pits-1) * deep_pits_value
+    # score += safe_ahead * safe_ahead_value
+    if best_next_piece_placement:
+        score += next_piece_ahead_value * best_next_piece_placement[1]
 
     return score
 
@@ -322,6 +390,15 @@ def needs_rotating(piece_coord, placement):
             break
     return needsRotation
 
+def safe_landing(game, floor, placement):
+    """ Returns if any holes would be added when a piece is inserted. """
+    initial_holes = get_holes(game, floor)
+
+    new_game = game + placement
+    new_floor = get_floor(new_game)
+    end_holes = get_holes(new_game, new_floor)
+
+    return end_holes <= initial_holes
 
 
 # DO NOT CHANGE THE LINES BELLOW
