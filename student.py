@@ -6,6 +6,8 @@ import json
 import os
 from shape import L, J, S, Z, I, O, T, Shape
 
+import time
+
 import websockets
 
 import random
@@ -26,8 +28,10 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
         curr_game = None # to decides if a piece is new or not
         curr_piece = []
         inputs = []
-
         is_new_piece = True
+
+        times_sum = 0
+        process_counter = 0
 
         while True:
             try:
@@ -38,6 +42,8 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
 
                 if is_new_piece:
                     print("Calculating best move...")
+                    tic = time.perf_counter()
+
 
                     curr_game = state["game"]
                     curr_piece = state["piece"]
@@ -74,6 +80,10 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
 
                     is_new_piece = False
                     print("inputs to perform: " + str(inputs))
+                    toc = time.perf_counter() - tic
+                    process_counter += 1
+                    times_sum += toc
+                    print("Time to calculate:", toc)
 
 
 
@@ -98,6 +108,9 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                     await websocket.send(
                             json.dumps({"cmd": "key", "key": key})
                         ) 
+
+            except KeyError:
+                print("average time:", times_sum/process_counter)
 
             except websockets.exceptions.ConnectionClosedOK:
                 print("Server has cleanly disconnected us")
@@ -256,8 +269,8 @@ def evaluate_placement(placement, game, strategy, next_pieces, look_ahead_counte
     # penalties
     holes_value = 20
     height_value = 2
-    deep_pits_value = 10
-    global_height_mult = 2              # multiplies height_value after floor crosses certain threshold
+    deep_pits_value = 20
+    global_height_mult = 2              # multiplies height_value and line_clear_value after floor crosses certain threshold
     global_height_threshold = 18        # from what Y does the global_height_mult take effect
 
     #others
@@ -295,17 +308,17 @@ def evaluate_placement(placement, game, strategy, next_pieces, look_ahead_counte
     ## Look Ahead
     # safe_ahead = False
 
-    best_next_piece_placement = None
-
-    if look_ahead_counter < LOOK_AHEAD:
-        next_piece = identify_shape(next_pieces[look_ahead_counter])
-        next_piece_placements = get_possible_placements(next_piece, new_floor)
-
-        for next_piece_placement in next_piece_placements:
-            next_piece_score = evaluate_placement(next_piece_placement, new_game, "clear_lines", next_pieces, look_ahead_counter=look_ahead_counter+1)
-
-            if not best_next_piece_placement or best_next_piece_placement[1] < next_piece_score:
-                best_next_piece_placement = (next_piece_placement, next_piece_score)
+    #best_next_piece_placement = None
+    #
+    #if look_ahead_counter < LOOK_AHEAD:
+    #    next_piece = identify_shape(next_pieces[look_ahead_counter])
+    #    next_piece_placements = get_possible_placements(next_piece, new_floor)
+    #
+    #    for next_piece_placement in next_piece_placements:
+    #        next_piece_score = evaluate_placement(next_piece_placement, new_game, "clear_lines", next_pieces, look_ahead_counter=look_ahead_counter+1)
+    #
+    #        if not best_next_piece_placement or best_next_piece_placement[1] < next_piece_score:
+    #            best_next_piece_placement = (next_piece_placement, next_piece_score)
 
         # obter qual das jogadas atuais resulta em um melhor score da next_piece
 
@@ -328,24 +341,24 @@ def evaluate_placement(placement, game, strategy, next_pieces, look_ahead_counte
     #             # se alguma posicao da proxa peca for safe, ent podemos por aqui
     #             safe_ahead = True
                 
-    if best_next_piece_placement:
-        print(f"EVALUATE - lines_cleared: {lines_cleared}, after multiplier: {lines_cleared*line_clear_value}")
-        print(f"EVALUATE - n_holes: {n_holes}, after multiplier: {n_holes*holes_value}")
-        print(f"EVALUATE - height_difference_score: {height_difference_score}, after multiplier: {height_difference_score*height_value}")
-        print(f"EVALUATE - deep_pits_score: {deep_pits}, after multiplier: {deep_pits*deep_pits_value}")
-        # print(f"EVALUATE - safe_ahead: {safe_ahead}, after multiplies: {safe_ahead * safe_ahead_value} ")
-        print(f"EVALUATE - next_piece_best_score: {best_next_piece_placement[1]}, after multiplies: {next_piece_ahead_value * best_next_piece_placement[1]} ")
+    #if best_next_piece_placement:
+    #    print(f"EVALUATE - lines_cleared: {lines_cleared}, after multiplier: {lines_cleared*line_clear_value}")
+    #    print(f"EVALUATE - n_holes: {n_holes}, after multiplier: {n_holes*holes_value}")
+    #    print(f"EVALUATE - height_difference_score: {height_difference_score}, after multiplier: {height_difference_score*height_value}")
+    #    print(f"EVALUATE - deep_pits_score: {deep_pits}, after multiplier: {deep_pits*deep_pits_value}")
+    #    # print(f"EVALUATE - safe_ahead: {safe_ahead}, after multiplies: {safe_ahead * safe_ahead_value} ")
+    #    print(f"EVALUATE - next_piece_best_score: {best_next_piece_placement[1]}, after multiplies: {next_piece_ahead_value * best_next_piece_placement[1]} ")
 
 
 
     # calculate score
-    score = lines_cleared * line_clear_value
+    score = lines_cleared * line_clear_value * ( global_height_mult if highest_point < global_height_threshold else 1 )
     score -= n_holes * holes_value
     score -= height_difference_score * height_value * ( global_height_mult if highest_point < global_height_threshold else 1 )
     score -= (deep_pits-1) * deep_pits_value
     # score += safe_ahead * safe_ahead_value
-    if best_next_piece_placement:
-        score += next_piece_ahead_value * best_next_piece_placement[1]
+    #if best_next_piece_placement:
+    #    score += next_piece_ahead_value * best_next_piece_placement[1]
 
     return score
 
