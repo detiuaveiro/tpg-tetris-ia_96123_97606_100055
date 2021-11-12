@@ -215,14 +215,18 @@ def get_possible_placements(piece_shape, floor):
 def evaluate_placement(placement, game, strategy):
     """ Returns a placement's calculated score according to strategy. Higher score means better placement """
 
-    
+    # incentives
     line_clear_value = 3
     tetris_value = 3
-    holes_value = 5
+
+    # penalties
+    holes_value = 7
     height_value = 2
+    deep_pits_value = 2
+
+
     future_value = 0
     
-
     # Set value of criteria according to strategy
     if strategy == "clear_lines":
         tetris_value = 0
@@ -236,8 +240,13 @@ def evaluate_placement(placement, game, strategy):
 
     highest_point = min(new_floor)
     height_difference_score = highest_point - max(new_floor)
-    for y in new_floor:
-        height_difference_score += y - highest_point
+    deep_pits = 0
+    for i in range(len(new_floor)):
+        height_difference_score += new_floor[i] - highest_point
+        # determine how many pits there are with depth greater than 2, relative to their least tall neighbor
+        left_height = new_floor[i-1] if i < 0 else -1
+        right_height = new_floor[i+1] if i < len(new_floor) -1 else -1
+        deep_pits += new_floor[i] - max(left_height, right_height) > 2
 
 
     # determine possible placements for the next piece and evaluate them,
@@ -247,11 +256,14 @@ def evaluate_placement(placement, game, strategy):
     print(f"EVALUATE - lines_cleared: {lines_cleared}, after multiplier: {lines_cleared*line_clear_value}")
     print(f"EVALUATE - n_holes: {n_holes}, after multiplier: {n_holes*holes_value}")
     print(f"EVALUATE - height_difference_score: {height_difference_score}, after multiplier: {height_difference_score*height_value}")
+    print(f"EVALUATE - deep_pits_score: {deep_pits}, after multiplier: {deep_pits*deep_pits_value}")
+
 
     # calculate score
     score = lines_cleared * line_clear_value
     score -= n_holes * holes_value
     score -= height_difference_score * height_value
+    score -= (deep_pits-1) * deep_pits_value
 
     return score
 
