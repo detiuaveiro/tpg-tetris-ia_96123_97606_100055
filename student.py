@@ -114,6 +114,18 @@ def get_floor(game):
     return higher_pos
 
 
+# TODO IMPROVEMENT: rather than counting individual cells as different holes,
+# count vertical gaps as one hole, or adjacent empty cells as one hole
+# 
+#  4 Holes or 3 holes? to be determined
+#
+#    OOOOO            
+#    O OOO
+#    O  OO    
+#    OOO O
+#    O OOO
+#    OOOOO
+
 def get_holes(game, floor):
     """ Get number of holes in game state """
     #print("get_holes - floor:", floor)
@@ -242,20 +254,22 @@ def evaluate_placement(placement, game, strategy, next_pieces, look_ahead_counte
     tetris_value = 3
 
     # penalties
-    holes_value = 7
+    holes_value = 20
     height_value = 2
-    deep_pits_value = 2
+    deep_pits_value = 10
+    global_height_mult = 2              # multiplies height_value after floor crosses certain threshold
+    global_height_threshold = 18        # from what Y does the global_height_mult take effect
 
     #others
     # safe_ahead_value = 100
-    next_piece_ahead_value = 0.5  
+    next_piece_ahead_value = 0.125  
 
     future_value = 0
     
     # Set value of criteria according to strategy
     if strategy == "clear_lines":
         tetris_value = 0
-        line_clear_value = 10
+        line_clear_value = 15
 
 
     new_game = game + placement     
@@ -264,7 +278,7 @@ def evaluate_placement(placement, game, strategy, next_pieces, look_ahead_counte
     n_holes = get_holes(new_game, new_floor)
 
     highest_point = min(new_floor)
-    height_difference_score = highest_point - max(new_floor)
+    height_difference_score = highest_point*2 - max(new_floor)  # give a little leeway on height difference
     deep_pits = 0
     for i in range(len(new_floor)):
         height_difference_score += new_floor[i] - highest_point
@@ -327,7 +341,7 @@ def evaluate_placement(placement, game, strategy, next_pieces, look_ahead_counte
     # calculate score
     score = lines_cleared * line_clear_value
     score -= n_holes * holes_value
-    score -= height_difference_score * height_value
+    score -= height_difference_score * height_value * ( global_height_mult if highest_point < global_height_threshold else 1 )
     score -= (deep_pits-1) * deep_pits_value
     # score += safe_ahead * safe_ahead_value
     if best_next_piece_placement:
