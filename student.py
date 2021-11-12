@@ -20,10 +20,11 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
         # Receive information about static game properties
         await websocket.send(json.dumps({"cmd": "join", "name": agent_name}))
 
-        previous_game = None # to decides if a piece is new or not
+        curr_game = None # to decides if a piece is new or not
         curr_piece = []
         inputs = []
 
+        is_new_piece = True
 
         while True:
             try:
@@ -32,18 +33,18 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                 )  # receive game update, this must be called timely or your game will get out of sync with the server
                 # state contains: game, piece, next_pieces, game_speed and score
 
-                is_new_piece = state["game"] != previous_game
-
                 if is_new_piece:
                     print("Calculating best move...")
 
-                    previous_game = state["game"]
+                    curr_game = state["game"]
                     curr_piece = state["piece"]
-                    floor = get_floor(previous_game)
-                
+                    floor = get_floor(curr_game)
+                    print("floor: ", floor)
+
+
                     if not curr_piece:
                         curr_piece = state["piece"]
-                        
+                    #print("peca foda:", curr_piece)
                     if curr_piece:
                         curr_shape = identify_shape(curr_piece)
                         print("Peca Identificada:", curr_shape)
@@ -61,7 +62,12 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                     print("best placement: " + str(best_placement))
                     
                     inputs = determine_moves(curr_shape, best_placement[0])
+                    is_new_piece = False
                     print("inputs to perform: " + str(inputs))
+
+
+                if state["piece"] is None:
+                    is_new_piece = True
 
 
                 #options = ["a","w","d"]
@@ -99,12 +105,23 @@ def get_floor(game):
 
 def get_holes(game, floor):
     """ Get number of holes in game state """
-    n_holes = 0
-    for x in range(len(floor)):
-        for y in range(29, floor[x]):
-            if [x,y] not in game:
-                # there is hole
-                n_holes += 1
+
+    #print("get_holes - floor:", floor)
+    #print("get_holes - game:", game)
+
+    #n_holes = 0
+    #for x in range(len(floor)):
+    #    for y in range(29, floor[x]):
+    #        if [x,y] not in game:
+    #            # there is hole
+    #            n_holes += 1
+
+
+
+    #Counter(y for _, y in game).most_common()
+
+    n_holes = sum( HEIGHT - y for y in floor ) - len(game)
+    print("get_holes - number:", n_holes)
     return n_holes
 
 def identify_shape(piece):
@@ -164,19 +181,21 @@ def get_possible_placements(piece_shape, floor):
                 minX = x
             if x > maxX:
                 maxX =x
+        
 
         pos = [[x-minX+1,y-minY] for (x,y) in pos]
         # pos = posicoes na extrema esquerda e no topo ☭ 
 
-        while maxX <= WIDTH: # da esquerda para a direita
-            inside_pos = deepcopy(pos)
+        rightmost_x = maxX - minX + 1
 
+        while rightmost_x <= WIDTH: # da esquerda para a direita
+            inside_pos = deepcopy(pos)
 
             hadContact = False
 
             while not hadContact:
 
-                for j in range(maxX): # para cada floor ate o x maximo
+                for j in range(rightmost_x): # para cada floor ate o x maximo
                     floor_y = floor[j]
                     for (x,y) in inside_pos: # para cada posicao da peca
                         if x == j+1 and floor_y == y: # ocorreu contato dessa posicao com o chao
@@ -189,7 +208,7 @@ def get_possible_placements(piece_shape, floor):
                 inside_pos = [[x, y+1] for (x,y) in inside_pos] # se nao houve contato, vamos descer a peca
             
             pos = [[x+1,y] for (x,y) in pos]
-            maxX += 1
+            rightmost_x += 1
         copy_shape.rotate()
                 
     return lst
@@ -229,7 +248,7 @@ def evaluate_placement(placement, game, strategy):
     
     line_clear_value = 2
     tetris_value = 3
-    holes_value = 1
+    holes_value = 2
     height_value = 1
     future_value = 0
     
@@ -244,6 +263,8 @@ def evaluate_placement(placement, game, strategy):
     lines_cleared, new_game = count_lines_cleared(new_game)
     new_floor = get_floor(new_game)
     n_holes = get_holes(new_game, new_floor)
+
+    #print(n_holes)
 
     highest_point = min(new_floor)
     height_difference_score = highest_point - max(new_floor)
@@ -290,7 +311,7 @@ def determine_moves(piece, placement):
     # First, we check if the piece needs rotating
     while(needs_rotating(piece_coord, placement)):
         move_set.append('w')
-        _piece.rotate(-1)
+        _piece.rotate()
         piece_coord = _piece.positions
     
     #R Then, where it needs shifting
