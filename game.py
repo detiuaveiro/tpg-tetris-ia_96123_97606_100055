@@ -61,8 +61,8 @@ class Game:
 
         self.game_speed = GAME_SPEED + self.score // SPEED_STEP
 
-        [(_, count)] = Counter(y for _, y in self.game).most_common(1)
-        assert count != len(self._bottom) - 2, f"please create an issue https://github.com/dgomes/ia-tetris/issues sharing:\n {self.game}"
+        #[(_, count)] = Counter(y for _, y in self.game).most_common(1)
+        #assert count != len(self._bottom) - 2, f"please create an issue https://github.com/dgomes/ia-tetris/issues sharing:\n {self.game}"
 
     def keypress(self, key):
         """Update locally last key pressed."""

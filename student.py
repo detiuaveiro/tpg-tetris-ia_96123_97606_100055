@@ -29,6 +29,7 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
         curr_piece = []
         inputs = []
         is_new_piece = True
+        score = 0
 
         times_sum = 0
         process_counter = 0
@@ -40,15 +41,17 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                 )  # receive game update, this must be called timely or your game will get out of sync with the server
                 # state contains: game, piece, next_pieces, game_speed and score
 
+                score = state["score"]
+
                 if is_new_piece:
-                    print("Calculating best move...")
+                    #print("Calculating best move...")
                     tic = time.perf_counter()
 
 
                     curr_game = state["game"]
                     curr_piece = state["piece"]
                     floor = get_floor(curr_game)
-                    print("floor: ", floor)
+                    #print("floor: ", floor)
 
 
                     if not curr_piece:
@@ -56,34 +59,34 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                     #print("peca foda:", curr_piece)
                     if curr_piece:
                         curr_shape = identify_shape(curr_piece)
-                        print("Peca Identificada:", curr_shape)
+                        #print("Peca Identificada:", curr_shape)
 
                     placements = get_possible_placements(curr_shape, floor)
-                    print("placements found:")
+                    #print("placements found:")
 
                     best_placement = None
 
                     next_pieces = state["next_pieces"]
 
-                    for i in range(LOOK_AHEAD):
-                        print("Next Piece", i+1, "=", identify_shape(next_pieces[i], output=True))
+                    #for i in range(LOOK_AHEAD):
+                    #    print("Next Piece", i+1, "=", identify_shape(next_pieces[i], output=True))
 
                     for placement in placements:
                         score = evaluate_placement(placement, state["game"], "clear_lines", next_pieces)
-                        print("    "+ str(placement)+", score: " + str(score))
+                        #print("    "+ str(placement)+", score: " + str(score))
                         if not best_placement or best_placement[1] < score:
                             best_placement = (placement, score)
-                    print("best placement: " + str(best_placement))
+                    #print("best placement: " + str(best_placement))
                     
                     inputs = determine_moves(curr_shape, best_placement[0])
                     if SPEED_RUN: inputs.append("s")
 
                     is_new_piece = False
-                    print("inputs to perform: " + str(inputs))
+                    #print("inputs to perform: " + str(inputs))
                     toc = time.perf_counter() - tic
                     process_counter += 1
                     times_sum += toc
-                    print("Time to calculate:", toc)
+                    #print("Time to calculate:", toc)
 
 
 
@@ -110,10 +113,12 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                         ) 
 
             except KeyError:
-                print("average time:", times_sum/process_counter)
+                #print("average time:", times_sum/process_counter)
+                pass
 
             except websockets.exceptions.ConnectionClosedOK:
-                print("Server has cleanly disconnected us")
+                #print("Server has cleanly disconnected us")
+                print(score)
                 return
 
 
@@ -139,18 +144,30 @@ def get_floor(game):
 #    O OOO
 #    OOOOO
 
-def get_holes(game, floor):
+def get_holes(game, floor, mode="individual"):
     """ Get number of holes in game state """
     #print("get_holes - floor:", floor)
     #print("get_holes - game:", game)
-    n_holes = sum( HEIGHT - y for y in floor ) - len(game)
+
+    if mode == "individual":
+        n_holes = sum( HEIGHT - y for y in floor ) - len(game)
+    if mode == "group_vertical":
+
+        new_hole = True
+
+        for i in range(len(floor)):
+            for game_y in range(HEIGHT-floor[i]):
+                pass
+                
+
+
     #print("get_holes - number:", n_holes)
     return n_holes
 
 def identify_shape(piece, output = False):
     """ returns what shape the points represent """
     
-    print("Input Peca:", piece)
+    #print("Input Peca:", piece)
 
     if piece[0][0] == piece[1][0] == piece[2][0] < piece[3][0]:
         shape = Shape(L)
@@ -264,12 +281,12 @@ def evaluate_placement(placement, game, strategy, next_pieces, look_ahead_counte
 
     # incentives
     line_clear_value = 3
-    tetris_value = 3
+    value_tetris = True
 
     # penalties
-    holes_value = 20
-    height_value = 2
-    deep_pits_value = 20
+    holes_value = 200
+    height_value = 20
+    deep_pits_value = 50
     global_height_mult = 2              # multiplies height_value and line_clear_value after floor crosses certain threshold
     global_height_threshold = 18        # from what Y does the global_height_mult take effect
 
@@ -281,8 +298,8 @@ def evaluate_placement(placement, game, strategy, next_pieces, look_ahead_counte
     
     # Set value of criteria according to strategy
     if strategy == "clear_lines":
-        tetris_value = 0
-        line_clear_value = 15
+        value_tetris = False
+        line_clear_value = 5
 
 
     new_game = game + placement     
@@ -291,7 +308,7 @@ def evaluate_placement(placement, game, strategy, next_pieces, look_ahead_counte
     n_holes = get_holes(new_game, new_floor)
 
     highest_point = min(new_floor)
-    height_difference_score = highest_point*2 - max(new_floor)  # give a little leeway on height difference
+    height_difference_score = highest_point*2 - max(new_floor) if value_tetris else 0
     deep_pits = 0
     for i in range(len(new_floor)):
         height_difference_score += new_floor[i] - highest_point
@@ -355,7 +372,7 @@ def evaluate_placement(placement, game, strategy, next_pieces, look_ahead_counte
     score = lines_cleared * line_clear_value * ( global_height_mult if highest_point < global_height_threshold else 1 )
     score -= n_holes * holes_value
     score -= height_difference_score * height_value * ( global_height_mult if highest_point < global_height_threshold else 1 )
-    score -= (deep_pits-1) * deep_pits_value
+    score -= deep_pits * deep_pits_value 
     # score += safe_ahead * safe_ahead_value
     #if best_next_piece_placement:
     #    score += next_piece_ahead_value * best_next_piece_placement[1]
