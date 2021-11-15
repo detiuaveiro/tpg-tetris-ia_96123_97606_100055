@@ -16,9 +16,9 @@ WIDTH = 8
 HEIGHT = 30
 
 SPEED_RUN = True
-PLACEMENTS_LIM = 5      # number of placements to consider for look ahead
+PLACEMENTS_LIM = 3      # number of placements to consider for look ahead
 LOOK_AHEAD = 1
-LOOK_AHEAD_WEIGHT = 0.2
+LOOK_AHEAD_WEIGHT = 0.5
 STRATEGY = "clear_lines"  # valid strategies: "clear_lines"
 
 
@@ -68,13 +68,14 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
 
                     bestest_placement = None  # gud variable name
                     for i in range(len(best_placements)):
-                        placement = best_placements[i]
-                        next_game = curr_game.copy()
-                        next_game.extend(placement[0])
-                        _, next_game = count_lines_cleared( next_game )
-                        next_placements = calculate_piece_plays(identify_shape(next_pieces[0]), next_game, 1)
-                        #print("weird champ", next_placements)
-                        best_placements[i] = (best_placements[i][0], next_placements[0][1] * LOOK_AHEAD_WEIGHT)
+                        if next_pieces:
+                            placement = best_placements[i]
+                            next_game = curr_game.copy()
+                            next_game.extend(placement[0])
+                            _, next_game = count_lines_cleared( next_game )
+                            next_placements = calculate_piece_plays(identify_shape(next_pieces[0]), next_game, 1)
+                            #print("weird champ", next_placements)
+                            best_placements[i] = (best_placements[i][0], next_placements[0][1] * LOOK_AHEAD_WEIGHT)
 
                         if not bestest_placement or best_placements[i][1] > bestest_placement[1]:
                             bestest_placement = best_placements[i]
@@ -105,7 +106,7 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                         ) 
 
             except KeyError:
-                #print("average time:", times_sum/process_counter)
+                print("average time:", times_sum/process_counter)
                 pass
 
             except websockets.exceptions.ConnectionClosedOK:
@@ -276,9 +277,10 @@ def evaluate_placement(placement, game, strategy):
     value_tetris = True
 
     # penalties
-    holes_value = 200
-    height_value = 20
-    deep_pits_value = 50
+    holes_value = 20
+    height_value = 2#3
+    deep_pits_value = 12
+    absolute_height_value = 8          # the penalty for letting the building go higher
     global_height_mult = 2              # multiplies height_value and line_clear_value after floor crosses certain threshold
     global_height_threshold = 0        # from what Y does the global_height_mult take effect
     
@@ -286,7 +288,7 @@ def evaluate_placement(placement, game, strategy):
     # Set value of criteria according to strategy
     if strategy == "clear_lines":
         value_tetris = False
-        line_clear_value = 5
+        line_clear_value = 10
 
 
     new_game = game + placement     
@@ -295,16 +297,21 @@ def evaluate_placement(placement, game, strategy):
     n_holes = get_holes(new_game, new_floor)
 
     highest_point = min(new_floor)
-    height_difference_score = highest_point*2 - max(new_floor) if value_tetris else 0
+    #height_difference_score = highest_point*2 - max(new_floor) if value_tetris else 0
+    height_sum = 0
     deep_pits = 0
     for i in range(len(new_floor)):
-        height_difference_score += new_floor[i] - highest_point
+        #height_difference_score += new_floor[i] - highest_point
+        height_sum += new_floor[i]
         # determine how many pits there are with depth greater than 2, relative to their least tall neighbor
         left_height = new_floor[i-1] if i < 0 else -1
         right_height = new_floor[i+1] if i < len(new_floor) -1 else -1
         deep_pits += new_floor[i] - max(left_height, right_height) > 2
 
-                
+    avg_height = height_sum/WIDTH
+    height_difference_score = sum( abs(avg_height - y) for y in new_floor )  # sum of deltas
+    
+
     # print(f"EVALUATE - lines_cleared: {lines_cleared}, after multiplier: {lines_cleared*line_clear_value}")
     # print(f"EVALUATE - n_holes: {n_holes}, after multiplier: {n_holes*holes_value}")
     # print(f"EVALUATE - height_difference_score: {height_difference_score}, after multiplier: {height_difference_score*height_value}")
@@ -314,7 +321,8 @@ def evaluate_placement(placement, game, strategy):
     score = lines_cleared * line_clear_value * ( global_height_mult if highest_point < global_height_threshold else 1 )
     score -= n_holes * holes_value
     score -= height_difference_score * height_value * ( global_height_mult if highest_point < global_height_threshold else 1 )
-    score -= deep_pits * deep_pits_value 
+    score -= deep_pits * deep_pits_value
+    score -= (HEIGHT - highest_point) * absolute_height_value
 
     return score
 
