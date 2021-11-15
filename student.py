@@ -18,8 +18,8 @@ HEIGHT = 30
 SPEED_RUN = True
 PLACEMENTS_LIM = 5      # number of placements to consider for look ahead
 LOOK_AHEAD = 1
-LOOK_AHEAD_WEIGHT = 0.2
-STRATEGY = "clear_lines"  # valid strategies: "clear_lines"
+LOOK_AHEAD_WEIGHT = 1
+STRATEGY = "clear_lines"  # valid strategies: "clear_lines", "devalue_lines"
 
 
 async def agent_loop(server_address="localhost:8000", agent_name="student"):
@@ -68,18 +68,21 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
 
                     bestest_placement = None  # gud variable name
                     for i in range(len(best_placements)):
-                        placement = best_placements[i]
-                        next_game = curr_game.copy()
-                        next_game.extend(placement[0])
-                        _, next_game = count_lines_cleared( next_game )
-                        next_placements = calculate_piece_plays(identify_shape(next_pieces[0]), next_game, 1)
-                        #print("weird champ", next_placements)
-                        best_placements[i] = (best_placements[i][0], next_placements[0][1] * LOOK_AHEAD_WEIGHT)
+                        if next_pieces:
+                            placement = best_placements[i]
+                            next_game = curr_game.copy()
+                            next_game.extend(placement[0])
+                            _, next_game = count_lines_cleared( next_game )
+                            next_placements = calculate_piece_plays(identify_shape(next_pieces[0]), next_game, quantity=1, strategy="devalue_lines")
+                            #print("weird champ", next_placements)
+                            best_placements[i] = (best_placements[i][0], next_placements[0][1] * LOOK_AHEAD_WEIGHT)
 
                         if not bestest_placement or best_placements[i][1] > bestest_placement[1]:
                             bestest_placement = best_placements[i]
 
-                    
+
+                    #print("best placement:", bestest_placement)
+
                     # get commands to perform best placement
                     inputs = determine_moves(curr_shape, bestest_placement[0])
                     if SPEED_RUN: inputs.append("s")
@@ -105,7 +108,7 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                         ) 
 
             except KeyError:
-                #print("average time:", times_sum/process_counter)
+                print("average time:", times_sum/process_counter)
                 pass
 
             except websockets.exceptions.ConnectionClosedOK:
@@ -143,18 +146,35 @@ def get_holes(game, floor, mode="individual"):
 
     if mode == "individual":
         n_holes = sum( HEIGHT - y for y in floor ) - len(game)
-    if mode == "group_vertical":
 
-        new_hole = True
+    elif mode == "group_vertical":
+        matrix = game_to_matrix(game)
+        # print(*matrix, sep="\n")
 
-        for i in range(len(floor)):
-            for game_y in range(HEIGHT-floor[i]):
-                pass
-                
-
-
-    #print("get_holes - number:", n_holes)
+        n_holes = 0
+        for game_x in range(len(floor)):
+            # insert pruning here
+            hole = False
+            for game_y in range(HEIGHT-1, floor[game_x]-1, -1):
+                # print(game_x, game_y-1)
+                if hole:
+                    if matrix[game_x][game_y-1]:
+                        # thy hole ended
+                        hole = False
+                else:
+                    if not matrix[game_x][game_y-1]:
+                        hole = True
+                        n_holes += 1
+    # print("get_holes - number:", n_holes)
     return n_holes
+
+
+def game_to_matrix(game):
+    matrix = [ [0 for y in range(HEIGHT-1)] for x in range(WIDTH) ]
+    for x, y in game:
+        matrix[x-1][y-1] = 1
+    return matrix
+
 
 def identify_shape(piece, output = False):
     """ returns what shape the points represent """
@@ -272,21 +292,25 @@ def evaluate_placement(placement, game, strategy):
     """ Returns a placement's calculated score according to strategy. Higher score means better placement """
 
     # incentives
-    line_clear_value = 3
+    line_clear_value = 20
     value_tetris = True
 
     # penalties
-    holes_value = 200
-    height_value = 20
-    deep_pits_value = 50
+    holes_value = 300
+    height_value = 20                   # the relative differences between floor levels
+    deep_pits_value = 450               # the penalty for having several deep pits
+    absolute_height_value = 20          # the penalty for letting the building go higher
     global_height_mult = 2              # multiplies height_value and line_clear_value after floor crosses certain threshold
-    global_height_threshold = 0        # from what Y does the global_height_mult take effect
+    global_height_threshold = 0         # from what Y does the global_height_mult take effect
     
 
     # Set value of criteria according to strategy
     if strategy == "clear_lines":
         value_tetris = False
-        line_clear_value = 5
+        line_clear_value = 500
+    elif strategy == "devalue_lines":
+        value_tetris = False
+        line_clear_value = 0
 
 
     new_game = game + placement     
@@ -314,17 +338,22 @@ def evaluate_placement(placement, game, strategy):
     score = lines_cleared * line_clear_value * ( global_height_mult if highest_point < global_height_threshold else 1 )
     score -= n_holes * holes_value
     score -= height_difference_score * height_value * ( global_height_mult if highest_point < global_height_threshold else 1 )
-    score -= deep_pits * deep_pits_value 
+    score -= deep_pits * deep_pits_value
+    score -= (HEIGHT - highest_point) * absolute_height_value
+
+    #print(placement)
+    #print("n_holes", n_holes)
+
 
     return score
 
 
-def calculate_piece_plays(shape, game, quantity=PLACEMENTS_LIM):
+def calculate_piece_plays(shape, game, quantity=PLACEMENTS_LIM, strategy="clear_lines"):
     placements = get_possible_placements(shape, get_floor(game))
     best_placements = []
 
     for placement in placements:
-        score = evaluate_placement(placement, game, STRATEGY)
+        score = evaluate_placement(placement, game, strategy)
 
         if len(best_placements) < quantity:
             best_placements.append( (placement, score) )
@@ -339,7 +368,6 @@ def calculate_piece_plays(shape, game, quantity=PLACEMENTS_LIM):
                 best_placements[min_index] = (placement, score)
     
     return best_placements
-
 
 
 def count_lines_cleared(game):
