@@ -318,7 +318,7 @@ def evaluate_placement(placement, game, strategy):
     # penalties
     holes_value = 20
     height_value = 2#3
-    deep_pits_value = 12
+    deep_pits_value = 24
     absolute_height_value = 8          # the penalty for letting the building go higher
     global_height_mult = 2             # multiplies height_value and line_clear_value after floor crosses certain threshold
     global_height_threshold = 0        # from what Y does the global_height_mult take effect
