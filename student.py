@@ -69,9 +69,11 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                     if curr_piece:
                         curr_shape = identify_shape(curr_piece)
                         #print("Peca Identificada:", curr_shape)
+                    
+                    # !!! Non-Recursive Lookahead (Hard Coded) 
 
                     # best_placements = calculate_piece_plays(curr_shape, curr_game)
-                    # #print("best placements: " + str(best_placements))
+                    #print("best placements: " + str(best_placements))
 
                     # bestest_placement = None  # gud variable name
                     # for i in range(len(best_placements)):
@@ -87,7 +89,10 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                     #     if not bestest_placement or best_placements[i][1] > bestest_placement[1]:
                     #         bestest_placement = best_placements[i]
 
-                    bestest_placement = get_best_placement(curr_game,curr_shape,next_pieces,1,0,2,2)
+                    # !!! Recursive Lookahead 
+                    # params: curr_game,curr_shape,next_pieces,1,0,LOOK_AHEAD_WEIGHT,1 should produce roughly the same score as above
+
+                    bestest_placement = get_best_placement(curr_game,curr_shape,next_pieces,1,0,LOOK_AHEAD_WEIGHT,1)
 
                     
                     # get commands to perform best placement
@@ -123,7 +128,7 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                 return
 
 def get_best_placement(game, shape, next, lookahead=0, piece_idx=0, weight=1, placement_lim=PLACEMENTS_LIM):
-    placements = calculate_piece_plays(shape, game, PLACEMENTS_LIM)
+    placements = calculate_piece_plays(shape, game, placement_lim)
     best_placement = None
     if lookahead:
         for placement in placements:
@@ -131,10 +136,10 @@ def get_best_placement(game, shape, next, lookahead=0, piece_idx=0, weight=1, pl
             next_game.extend(placement[0])
             _, next_game = count_lines_cleared(next_game)
             next_shape = identify_shape(next[piece_idx])
-            best_placement = (placement[0], placement[1] + (weight*get_best_placement(next_game, next_shape, next, lookahead-1, piece_idx+1,weight,2)[1]))
+            new_placement = (placement[0], weight*placement[1] + get_best_placement(next_game, next_shape, next, lookahead-1, piece_idx+1,weight,1)[1])
             #print(best_placement, placement)
-            if not best_placement or placement[1] > best_placement[1]:
-                best_placement = placement
+            if not best_placement or new_placement[1] > best_placement[1]:
+                best_placement = new_placement
         return best_placement    
     else:
         for placement in placements:
