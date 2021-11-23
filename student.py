@@ -16,9 +16,11 @@ WIDTH = 8
 HEIGHT = 30
 
 SPEED_RUN = True
-PLACEMENTS_LIM = 3      # number of placements to consider for look ahead
+#PLACEMENTS_LIM = 3      # number of placements to consider for look ahead
+PLACEMENTS_LIM = [3,3,1,0]
 LOOK_AHEAD = 1
-LOOK_AHEAD_WEIGHT = 2
+#LOOK_AHEAD_WEIGHT = 2
+LOOK_AHEAD_WEIGHT = [1,2,2,0]
 STRATEGY = "clear_lines"  # valid strategies: "clear_lines"
 
 
@@ -63,23 +65,29 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                         curr_shape = identify_shape(curr_piece)
                         #print("Peca Identificada:", curr_shape)
 
-                    best_placements = calculate_piece_plays(curr_shape, curr_game)
-                    #print("best placements: " + str(best_placements))
+                    # best_placements = calculate_piece_plays(curr_shape, curr_game)
+                    # #print("best placements: " + str(best_placements))
 
-                    bestest_placement = None  # gud variable name
-                    for i in range(len(best_placements)):
-                        if next_pieces:
-                            placement = best_placements[i]
-                            next_game = curr_game.copy()
-                            next_game.extend(placement[0])
-                            _, next_game = count_lines_cleared( next_game )
-                            next_placements = calculate_piece_plays(identify_shape(next_pieces[0]), next_game, 1)
-                            #print("weird champ", next_placements)
-                            best_placements[i] = (best_placements[i][0], next_placements[0][1] * LOOK_AHEAD_WEIGHT)
+                    # bestest_placement = None  # gud variable name
+                    # for i in range(len(best_placements)):
+                    #     if next_pieces:
+                    #         placement = best_placements[i]
+                    #         next_game = curr_game.copy()
+                    #         next_game.extend(placement[0])
+                    #         _, next_game = count_lines_cleared( next_game )
+                    #         next_placements = calculate_piece_plays(identify_shape(next_pieces[0]), next_game, 1)
+                    #         #print("weird champ", next_placements)
+                    #         best_placements[i] = (best_placements[i][0], next_placements[0][1] * LOOK_AHEAD_WEIGHT)
 
-                        if not bestest_placement or best_placements[i][1] > bestest_placement[1]:
-                            bestest_placement = best_placements[i]
+                    #     if not bestest_placement or best_placements[i][1] > bestest_placement[1]:
+                    #         bestest_placement = best_placements[i]
 
+
+                    # !!! Recursive Lookahead 
+                    # params: curr_game,curr_shape,next_pieces,1,0,LOOK_AHEAD_WEIGHT,1 should produce roughly the same score as above
+                    #print("=====")
+                    bestest_placement = get_best_placement(curr_game,curr_shape,next_pieces,2,0,LOOK_AHEAD_WEIGHT[0],PLACEMENTS_LIM[0])
+                    #print(bestest_placement)
                     
                     # get commands to perform best placement
                     inputs = determine_moves(curr_shape, bestest_placement[0])
@@ -113,6 +121,28 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                 #print("Server has cleanly disconnected us")
                 print(score)
                 return
+
+def get_best_placement(game, shape, next, lookahead=0, piece_idx=0, weight=1, placement_lim=1000):
+    #print('   '*piece_idx,piece_idx, lookahead)
+    placements = calculate_piece_plays(shape, game, placement_lim)
+    best_placement = None
+    if lookahead != 0:
+        for placement in placements:
+            #print('   '*piece_idx,"placement before:", placement)
+            next_game = game + placement[0]
+            _, next_game = count_lines_cleared(next_game)
+            next_shape = identify_shape(next[piece_idx])
+            new_placement = (placement[0], weight*placement[1] + get_best_placement(next_game, next_shape, next, lookahead-1, piece_idx+1, LOOK_AHEAD_WEIGHT[piece_idx+1], PLACEMENTS_LIM[piece_idx+1])[1])
+            #print('   '*piece_idx,"placement:", new_placement)
+            if not best_placement or new_placement[1] > best_placement[1]:
+                best_placement = new_placement
+        return best_placement    
+    else:
+        for placement in placements:
+            #print('   '*piece_idx,"terminal placement:", placement)
+            if not best_placement or placement[1] > best_placement[1]:
+                best_placement = (placement[0], weight*placement[1])
+        return best_placement
 
 
 def get_floor(game):
