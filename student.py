@@ -17,9 +17,11 @@ WIDTH = 8
 HEIGHT = 30
 
 SPEED_RUN = True
-PLACEMENTS_LIM = 3      # number of placements to consider for look ahead
+#PLACEMENTS_LIM = 3      # number of placements to consider for look ahead
+PLACEMENTS_LIM = [3,1,1,0]
 LOOK_AHEAD = 1
-LOOK_AHEAD_WEIGHT = 2
+#LOOK_AHEAD_WEIGHT = 2
+LOOK_AHEAD_WEIGHT = [1,2,2,0]
 STRATEGY = "clear_lines"  # valid strategies: "clear_lines"
 
 L_CLEAR = 0
@@ -91,10 +93,9 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
 
                     # !!! Recursive Lookahead 
                     # params: curr_game,curr_shape,next_pieces,1,0,LOOK_AHEAD_WEIGHT,1 should produce roughly the same score as above
-
-                    bestest_placement = get_best_placement(curr_game,curr_shape,next_pieces,1,0,LOOK_AHEAD_WEIGHT,1)
-
-                    
+                    #print("=====")
+                    bestest_placement = get_best_placement(curr_game,curr_shape,next_pieces,LOOK_AHEAD,0,LOOK_AHEAD_WEIGHT[0],PLACEMENTS_LIM[0])
+                    #print(bestest_placement)    
                     # get commands to perform best placement
                     inputs = determine_moves(curr_shape, bestest_placement[0])
                     if SPEED_RUN: inputs.append("s")
@@ -127,24 +128,26 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                 print(score)
                 return
 
-def get_best_placement(game, shape, next, lookahead=0, piece_idx=0, weight=1, placement_lim=PLACEMENTS_LIM):
+def get_best_placement(game, shape, next, lookahead=0, piece_idx=0, weight=1, placement_lim=1000):
+    #print('   '*piece_idx,piece_idx, lookahead)
     placements = calculate_piece_plays(shape, game, placement_lim)
     best_placement = None
-    if lookahead:
+    if lookahead != 0:
         for placement in placements:
-            next_game = deepcopy(game)
-            next_game.extend(placement[0])
+            #print('   '*piece_idx,"placement before:", placement)
+            next_game = game + placement[0]
             _, next_game = count_lines_cleared(next_game)
             next_shape = identify_shape(next[piece_idx])
-            new_placement = (placement[0], weight*placement[1] + get_best_placement(next_game, next_shape, next, lookahead-1, piece_idx+1,weight,1)[1])
-            #print(best_placement, placement)
+            new_placement = (placement[0], weight*placement[1] + get_best_placement(next_game, next_shape, next, lookahead-1, piece_idx+1, LOOK_AHEAD_WEIGHT[piece_idx+1], PLACEMENTS_LIM[piece_idx+1])[1])
+            #print('   '*piece_idx,"placement:", new_placement)
             if not best_placement or new_placement[1] > best_placement[1]:
                 best_placement = new_placement
         return best_placement    
     else:
         for placement in placements:
+            #print('   '*piece_idx,"terminal placement:", placement)
             if not best_placement or placement[1] > best_placement[1]:
-                best_placement = placement
+                best_placement = (placement[0], weight*placement[1])
         return best_placement
 
 
