@@ -17,7 +17,7 @@ HEIGHT = 30
 
 SPEED_RUN = True
 #PLACEMENTS_LIM = 3      # number of placements to consider for look ahead
-PLACEMENTS_LIM = [3,3,1,0]
+PLACEMENTS_LIM = [3,1,1,0]
 LOOK_AHEAD = 1
 #LOOK_AHEAD_WEIGHT = 2
 LOOK_AHEAD_WEIGHT = [1,2,2,0]
@@ -86,7 +86,7 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                     # !!! Recursive Lookahead 
                     # params: curr_game,curr_shape,next_pieces,1,0,LOOK_AHEAD_WEIGHT,1 should produce roughly the same score as above
                     #print("=====")
-                    bestest_placement = get_best_placement(curr_game,curr_shape,next_pieces,2,0,LOOK_AHEAD_WEIGHT[0],PLACEMENTS_LIM[0])
+                    bestest_placement = get_best_placement(curr_game,curr_shape,next_pieces,LOOK_AHEAD,0,LOOK_AHEAD_WEIGHT[0],PLACEMENTS_LIM[0])
                     #print(bestest_placement)
                     
                     # get commands to perform best placement
