@@ -5,6 +5,7 @@ import getpass
 import json
 import os
 from shape import L, J, S, Z, I, O, T, Shape
+import math
 
 import time
 
@@ -22,6 +23,12 @@ LOOK_AHEAD = 1
 #LOOK_AHEAD_WEIGHT = 2
 LOOK_AHEAD_WEIGHT = [1,2,2,0]
 STRATEGY = "clear_lines"  # valid strategies: "clear_lines"
+
+L_CLEAR = 0
+HOLE_AVOID = 0
+DEEP_PIT_AVOID = 0
+AVOID_HEAIGHT = 0
+WAVY_AVOID = 0
 
 
 async def agent_loop(server_address="localhost:8000", agent_name="student"):
@@ -51,22 +58,24 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                 if is_new_piece:
                     #print("Calculating best move...")
                     tic = time.perf_counter()
-
+                    
 
                     curr_game = state["game"]
                     curr_piece = state["piece"]
                     next_pieces = state["next_pieces"]
 
 
-                    if not curr_piece:
-                        curr_piece = state["piece"]
+                    # if not curr_piece:
+                    #     curr_piece = state["piece"]
                     #print("peca foda:", curr_piece)
                     if curr_piece:
                         curr_shape = identify_shape(curr_piece)
                         #print("Peca Identificada:", curr_shape)
+                    
+                    # !!! Non-Recursive Lookahead (Hard Coded) 
 
                     # best_placements = calculate_piece_plays(curr_shape, curr_game)
-                    # #print("best placements: " + str(best_placements))
+                    #print("best placements: " + str(best_placements))
 
                     # bestest_placement = None  # gud variable name
                     # for i in range(len(best_placements)):
@@ -82,13 +91,11 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                     #     if not bestest_placement or best_placements[i][1] > bestest_placement[1]:
                     #         bestest_placement = best_placements[i]
 
-
                     # !!! Recursive Lookahead 
                     # params: curr_game,curr_shape,next_pieces,1,0,LOOK_AHEAD_WEIGHT,1 should produce roughly the same score as above
                     #print("=====")
                     bestest_placement = get_best_placement(curr_game,curr_shape,next_pieces,LOOK_AHEAD,0,LOOK_AHEAD_WEIGHT[0],PLACEMENTS_LIM[0])
-                    #print(bestest_placement)
-                    
+                    #print(bestest_placement)    
                     # get commands to perform best placement
                     inputs = determine_moves(curr_shape, bestest_placement[0])
                     if SPEED_RUN: inputs.append("s")
@@ -114,7 +121,6 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                         ) 
 
             except KeyError:
-                print("average time:", times_sum/process_counter)
                 pass
 
             except websockets.exceptions.ConnectionClosedOK:
@@ -151,7 +157,6 @@ def get_floor(game):
     for (x,y) in game:
         if y < higher_pos[x-1]:
             higher_pos[x-1] = y
-
     return higher_pos
 
 
@@ -174,18 +179,32 @@ def get_holes(game, floor, mode="individual"):
 
     if mode == "individual":
         n_holes = sum( HEIGHT - y for y in floor ) - len(game)
-    if mode == "group_vertical":
+    elif mode == "group_vertical":
+        matrix = game_to_matrix(game)
+        # print(*matrix, sep="\n")
 
-        new_hole = True
-
-        for i in range(len(floor)):
-            for game_y in range(HEIGHT-floor[i]):
-                pass
-                
-
-
+        n_holes = 0
+        for game_x in range(len(floor)):
+            # insert pruning here
+            hole = False
+            for game_y in range(HEIGHT-1, floor[game_x]-1, -1):
+                # print(game_x, game_y-1)
+                if hole:
+                    if matrix[game_x][game_y-1]:
+                        # thy hole ended
+                        hole = False
+                else:
+                    if not matrix[game_x][game_y-1]:
+                        hole = True
+                        n_holes += 1
     #print("get_holes - number:", n_holes)
     return n_holes
+
+def game_to_matrix(game):
+    matrix = [ [0 for y in range(HEIGHT-1)] for x in range(WIDTH) ]
+    for x, y in game:
+        matrix[x-1][y-1] = 1
+    return matrix
 
 def identify_shape(piece, output = False):
     """ returns what shape the points represent """
@@ -296,8 +315,6 @@ def get_possible_placements(piece_shape, floor):
                 
     return lst
 
-
-
 # will be used to choose the best possible placement
 def evaluate_placement(placement, game, strategy):
     """ Returns a placement's calculated score according to strategy. Higher score means better placement """
@@ -311,7 +328,7 @@ def evaluate_placement(placement, game, strategy):
     height_value = 2#3
     deep_pits_value = 24
     absolute_height_value = 8          # the penalty for letting the building go higher
-    global_height_mult = 2              # multiplies height_value and line_clear_value after floor crosses certain threshold
+    global_height_mult = 2             # multiplies height_value and line_clear_value after floor crosses certain threshold
     global_height_threshold = 0        # from what Y does the global_height_mult take effect
     
 
@@ -383,8 +400,7 @@ def calculate_piece_plays(shape, game, quantity=PLACEMENTS_LIM):
 def count_lines_cleared(game):
     """ Return number of lines to be cleared in the given game state, and the new game state after clearing them """
     lines = 0
-    new_game = game.copy()
-
+    new_game = deepcopy(game)
     for item, count in sorted(Counter(y for _, y in game).most_common()):
         if count == WIDTH:
             new_game = [
