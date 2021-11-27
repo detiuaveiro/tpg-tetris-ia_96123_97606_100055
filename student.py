@@ -38,13 +38,17 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
 
         times_sum = 0
         process_counter = 0
-
         while True:
             try:
                 state = json.loads(
                     await websocket.recv()
                 )  # receive game update, this must be called timely or your game will get out of sync with the server
                 # state contains: game, piece, next_pieces, game_speed and score
+
+                if state.get("game") is None: # The dimensions of the game
+                    WIDTH = state["dimensions"][0] - 2 # Quando e 10, utilizamos 8 no algoritmo
+                    HEIGHT = state["dimensions"][1]
+                    continue
 
                 score = state["score"]
 

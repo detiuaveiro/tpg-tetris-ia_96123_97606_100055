@@ -39,9 +39,8 @@ class Game:
         return {
             "dimensions": self.dimensions,
             "grid": self.grid,
-            "piece": self.current_piece.positions if self.current_piece else None,
-            "next_pieces": [n.positions for n in self.next_pieces],
             "game_speed": self.game_speed,
+            "score": self.score
         }
 
     def clear_rows(self):
@@ -61,8 +60,10 @@ class Game:
 
         self.game_speed = GAME_SPEED + self.score // SPEED_STEP
 
-        #[(_, count)] = Counter(y for _, y in self.game).most_common(1)
-        #assert count != len(self._bottom) - 2, f"please create an issue https://github.com/dgomes/ia-tetris/issues sharing:\n {self.game}"
+        most_common = Counter(y for _, y in self.game).most_common(1)
+        if most_common != []:
+            (_, count) = most_common[0]
+            assert count != len(self._bottom) - 2, f"please create an issue https://github.com/dgomes/ia-tetris/issues sharing:\n {self.game}"
 
     def keypress(self, key):
         """Update locally last key pressed."""
@@ -117,6 +118,7 @@ class Game:
 
         self._lastkeypress = None
 
+        logger.debug("Current piece: %s", self.current_piece)
         return {
             "game": self.game,
             "piece": self.current_piece.positions if self.current_piece else None,
