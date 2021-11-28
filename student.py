@@ -17,10 +17,10 @@ HEIGHT = 30
 
 SPEED_RUN = True
 #PLACEMENTS_LIM = 3      # number of placements to consider for look ahead
-PLACEMENTS_LIM = [3,1,1,0]
-LOOK_AHEAD = 1
+PLACEMENTS_LIM = [2,2,1,0]
+LOOK_AHEAD = 2
 #LOOK_AHEAD_WEIGHT = 2
-LOOK_AHEAD_WEIGHT = [1,2,2,0]
+LOOK_AHEAD_WEIGHT = [1,2,3,0]
 STRATEGY = "clear_lines"  # valid strategies: "clear_lines"
 
 
@@ -124,6 +124,7 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
             except websockets.exceptions.ConnectionClosedOK:
                 #print("Server has cleanly disconnected us")
                 print(score)
+                print("average time:", times_sum/process_counter)
                 return
 
 def get_best_placement(game, shape, next, lookahead=0, piece_idx=0, weight=1, placement_lim=1000):
@@ -253,7 +254,7 @@ def get_possible_placements(piece_shape, floor):
     Returns a list of coordinate lists."""
     lst = []
     copy_shape : Shape = deepcopy(piece_shape)
-
+    # print("nova peca")
 
     for i in range(len(copy_shape.plan)): # para cada rotation
         pos = copy_shape.positions 
@@ -276,25 +277,44 @@ def get_possible_placements(piece_shape, floor):
         rightmost_x = maxX - minX + 1
 
         while rightmost_x <= WIDTH: # da esquerda para a direita
-            inside_pos = deepcopy(pos)
 
-            hadContact = False
+            dic = {}
+            for (x,y) in pos:
+                if x not in dic or dic[x] < y:
+                    dic[x] = y
 
-            while not hadContact:
+            height_diff = None
+            for x,y in dic.items():
+                dif = floor[x-1] - y
+                if height_diff is None or dif < height_diff:
+                    height_diff = dif
 
-                for j in range(rightmost_x): # para cada floor ate o x maximo
-                    floor_y = floor[j]
-                    for (x,y) in inside_pos: # para cada posicao da peca
-                        if x == j+1 and floor_y == y: # ocorreu contato dessa posicao com o chao
-                            #print("Found a placement")
-                            lst.append([[posx, posy - 1] for (posx, posy) in inside_pos]) # adicionar as pos com y - 1
-                            hadContact = True
-                            break
-                    if hadContact:
-                        break
-                inside_pos = [[x, y+1] for (x,y) in inside_pos] # se nao houve contato, vamos descer a peca
+            new_pos = [[x,y + height_diff - 1] for x,y in pos]
+            # print("new_pos:", new_pos)
+            # print("pos:", pos)
+            # print("rightmost_x:", rightmost_x)
+            lst.append(new_pos)
+
+            # inside_pos = deepcopy(pos)
+
+            # hadContact = False
+
+            # while not hadContact:
+
+            #     for j in range(rightmost_x): # para cada floor ate o x maximo
+            #         floor_y = floor[j]
+            #         for (x,y) in inside_pos: # para cada posicao da peca
+            #             if x == j+1 and floor_y == y: # ocorreu contato dessa posicao com o chao
+            #                 #print("Found a placement")
+            #                 lst.append([[posx, posy - 1] for (posx, posy) in inside_pos]) # adicionar as pos com y - 1
+            #                 hadContact = True
+            #                 break
+            #         if hadContact:
+            #             break
+            #     inside_pos = [[x, y+1] for (x,y) in inside_pos] # se nao houve contato, vamos descer a peca
             
             pos = [[x+1,y] for (x,y) in pos]
+
             rightmost_x += 1
         copy_shape.rotate()
                 
