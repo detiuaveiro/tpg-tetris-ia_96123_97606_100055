@@ -18,15 +18,11 @@ HEIGHT = 30
 
 SPEED_RUN = True
 #PLACEMENTS_LIM = 3      # number of placements to consider for look ahead
-PLACEMENTS_LIM = [2,2,1,0]
-LOOK_AHEAD = 2
+PLACEMENTS_LIM = [3,1,2,0]
+LOOK_AHEAD = 1
 #LOOK_AHEAD_WEIGHT = 2
-LOOK_AHEAD_WEIGHT = [1,1.5,3,0]
+LOOK_AHEAD_WEIGHT = [1,2,1,0]
 STRATEGY = "clear_lines"  # valid strategies: "clear_lines"
-
-
-
-
 
 async def agent_loop(server_address="localhost:8000", agent_name="student"):
     async with websockets.connect(f"ws://{server_address}/player") as websocket:
@@ -99,9 +95,10 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                     #print("=====")
                     node.game = curr_game
                     node.shape = curr_shape
+                    #print("=========================================")
                     new_node, placement = get_best_placement_node(node,next_pieces,LOOK_AHEAD,0,LOOK_AHEAD_WEIGHT[0],PLACEMENTS_LIM[0])
                     #print(bestest_placement)
-                    
+                    #print("=========================================")
                     # get commands to perform best placement
                     inputs = determine_moves(curr_shape, placement)
                     if SPEED_RUN: inputs.append("s")
@@ -138,6 +135,7 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
             except websockets.exceptions.ConnectionClosedOK:
                 #print("Server has cleanly disconnected us")
                 print(score)
+                print("average time:", times_sum/process_counter)
                 return
 
 class Node:
@@ -151,7 +149,7 @@ class Node:
         self.score = score
         self.lookahead_score = None
     def __str__(self) -> str:
-        return "Placements: " + str(len(self.placements)) + "; To Expand: " + str(len(self.to_expand)) + "; Base Score: " + str(self.score) + "; Lookahead Score: " + str(self.lookahead_score)
+        return "NODE "+ str(self.id) +" Placements: " + str(len(self.placements)) + "; To Expand: " + str(len(self.to_expand)) + "; Base Score: " + str(self.score) + "; Lookahead Score: " + str(self.lookahead_score)
 
 def print_shape(shape, piece_idx=0):
     ret = ""
@@ -169,6 +167,12 @@ def print_game(game, piece_idx=0):
         ret += "\n"
     print(ret)
 
+def print_expand(to_exapand, piece_idx=0):
+    ret = ""
+    for node,_ in to_exapand:
+        ret += "   "*piece_idx+str(node)+"\n"
+    print(ret)
+
 def game_to_matrix(game):
     matrix = [ [0 for y in range(HEIGHT-1)] for x in range(WIDTH) ]
     for x, y in game:
@@ -176,15 +180,24 @@ def game_to_matrix(game):
     return matrix
 
 def get_best_placement_node(node : Node, next, lookahead=0, piece_idx=0, weight=1, placement_lim=1000):
+    # print('   '*piece_idx+"Expanding "+str(node.id))
     node = calculate_piece_plays_node(node, placement_lim,piece_idx)
     if lookahead != 0:
         for i in range(len(node.to_expand)):
             node.to_expand[i][0].shape = identify_shape(next[piece_idx])
             get_best_placement_node(node.to_expand[i][0], next, lookahead-1, piece_idx+1, LOOK_AHEAD_WEIGHT[piece_idx+1], PLACEMENTS_LIM[piece_idx+1])
+            node.to_expand[i][0].lookahead_score = weight*evaluate_placement(node.to_expand[i][1],node.game,STRATEGY) + node.to_expand[i][0].to_expand[0][0].lookahead_score
         node.to_expand.sort(key=lambda x: x[0].lookahead_score,reverse=True)
-        node.lookahead_score = weight*node.score + node.to_expand[0][0].lookahead_score
+        #node.lookahead_score = weight*node.score + node.to_expand[0][0].lookahead_score
     else:
-        node.lookahead_score = weight*node.score
+        #node.lookahead_score = weight*node.score
+        for i in range(len(node.to_expand)):
+            node.to_expand[i][0].lookahead_score = weight*evaluate_placement(node.to_expand[i][1],node.game,STRATEGY)
+        node.to_expand.sort(key=lambda x: x[0].lookahead_score,reverse=True)
+    # print('   '*piece_idx+"Expanded:")
+    # print_expand(node.to_expand,piece_idx)
+    # print('   '*piece_idx+"Final:")
+    # print('   '*piece_idx+str(node))
     return node.to_expand[0]
 
 def calculate_piece_plays_node(node : Node, quantity=PLACEMENTS_LIM, piece_idx=0):
