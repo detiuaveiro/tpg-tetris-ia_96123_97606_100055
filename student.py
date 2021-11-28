@@ -19,7 +19,7 @@ HEIGHT = 30
 SPEED_RUN = True
 #PLACEMENTS_LIM = 3      # number of placements to consider for look ahead
 PLACEMENTS_LIM = [3,1,2,1]
-LOOK_AHEAD = 1
+LOOK_AHEAD = 2
 #LOOK_AHEAD_WEIGHT = 2
 LOOK_AHEAD_WEIGHT = [1,2,3,4]
 STRATEGY = "clear_lines"  # valid strategies: "clear_lines"
@@ -51,6 +51,11 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                     await websocket.recv()
                 )  # receive game update, this must be called timely or your game will get out of sync with the server
                 # state contains: game, piece, next_pieces, game_speed and score
+
+                if state.get("game") is None: # The dimensions of the game
+                    WIDTH = state["dimensions"][0] - 2 # Quando e 10, utilizamos 8 no algoritmo
+                    HEIGHT = state["dimensions"][1]
+                    continue
 
                 score = state["score"]
 
@@ -126,6 +131,10 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                 print("average time:", times_sum/process_counter)
                 pass
 
+            except KeyboardInterrupt:
+                print("average time:", times_sum/process_counter)
+                exit
+
             except websockets.exceptions.ConnectionClosedOK:
                 #print("Server has cleanly disconnected us")
                 print(score)
@@ -167,29 +176,21 @@ def game_to_matrix(game):
     return matrix
 
 def get_best_placement_node(node : Node, next, lookahead=0, piece_idx=0, weight=1, placement_lim=1000):
-    node = calculate_piece_plays_node(node, placement_lim)
-    # print('   '*piece_idx+"===========================================")
-    # print('   '*piece_idx+str(node.id)+" Score: "+str(node.score))
-    # print_shape(node.shape,piece_idx)
+    print("   "*piece_idx,node.id)
+    node = calculate_piece_plays_node(node, placement_lim,piece_idx)
     if lookahead != 0:
         for i in range(len(node.to_expand)):
-            #print('   '*piece_idx,"placement before:", placement)
             node.to_expand[i][0].shape = identify_shape(next[piece_idx])
             get_best_placement_node(node.to_expand[i][0], next, lookahead-1, piece_idx+1, LOOK_AHEAD_WEIGHT[piece_idx+1], PLACEMENTS_LIM[piece_idx+1])
-            #print('   '*piece_idx,"placement:", new_placement)
         node.to_expand.sort(key=lambda x: x[0].lookahead_score,reverse=True)
         node.lookahead_score = weight*node.score + node.to_expand[0][0].lookahead_score
     else:
         node.lookahead_score = weight*node.score
-    # print('  '*piece_idx,node.id,"Score:",node.lookahead_score)
-    # print('   '*piece_idx+"Chose: "+str(node.to_expand[0][0].id)+" Score: "+str(node.to_expand[0][0].lookahead_score))
-    # print_game(node.to_expand[0][0].game,piece_idx)
-    # print('   '*piece_idx+"===========================================")
     return node.to_expand[0]   
 
-def calculate_piece_plays_node(node : Node, quantity=PLACEMENTS_LIM):
+def calculate_piece_plays_node(node : Node, quantity=PLACEMENTS_LIM, piece_idx=0):
     if not node.placements:
-        #print("Expanded!")
+        print("   "*piece_idx,"Expanded!")
         placements = get_possible_placements(node.shape, get_floor(node.game))
         #print("response")
         for placement in placements:
@@ -202,7 +203,7 @@ def calculate_piece_plays_node(node : Node, quantity=PLACEMENTS_LIM):
             node.placements += [[next_node,placement]]
         node.placements.sort(key=lambda x: x[0].score,reverse=True)
     else:
-        #print("Not expanded!")
+        print("   "*piece_idx,"Not expanded!")
         pass
     node.to_expand = node.placements[:quantity]
     return node
