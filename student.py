@@ -18,10 +18,10 @@ HEIGHT = 30
 
 SPEED_RUN = True
 #PLACEMENTS_LIM = 3      # number of placements to consider for look ahead
-PLACEMENTS_LIM = [3,1,2,1]
+PLACEMENTS_LIM = [2,2,1,0]
 LOOK_AHEAD = 2
 #LOOK_AHEAD_WEIGHT = 2
-LOOK_AHEAD_WEIGHT = [1,2,3,4]
+LOOK_AHEAD_WEIGHT = [1,1.5,3,0]
 STRATEGY = "clear_lines"  # valid strategies: "clear_lines"
 
 
@@ -156,7 +156,7 @@ class Node:
 def print_shape(shape, piece_idx=0):
     ret = ""
     for line in shape.plan[shape.rotation]:
-        ret += '   '*piece_idx+line+"\n"
+        ret += "   "*piece_idx+line+"\n"
     print(ret)
 
 def print_game(game, piece_idx=0):
@@ -176,7 +176,6 @@ def game_to_matrix(game):
     return matrix
 
 def get_best_placement_node(node : Node, next, lookahead=0, piece_idx=0, weight=1, placement_lim=1000):
-    print("   "*piece_idx,node.id)
     node = calculate_piece_plays_node(node, placement_lim,piece_idx)
     if lookahead != 0:
         for i in range(len(node.to_expand)):
@@ -186,24 +185,19 @@ def get_best_placement_node(node : Node, next, lookahead=0, piece_idx=0, weight=
         node.lookahead_score = weight*node.score + node.to_expand[0][0].lookahead_score
     else:
         node.lookahead_score = weight*node.score
-    return node.to_expand[0]   
+    return node.to_expand[0]
 
 def calculate_piece_plays_node(node : Node, quantity=PLACEMENTS_LIM, piece_idx=0):
     if not node.placements:
-        print("   "*piece_idx,"Expanded!")
         placements = get_possible_placements(node.shape, get_floor(node.game))
-        #print("response")
         for placement in placements:
             score = evaluate_placement(placement, node.game, STRATEGY)
-            #print(score)
             next_game = node.game + placement
             _, next_game = count_lines_cleared(next_game)
             next_node = Node(next_game, score)
-            #print("b",next_node.score)
             node.placements += [[next_node,placement]]
         node.placements.sort(key=lambda x: x[0].score,reverse=True)
     else:
-        print("   "*piece_idx,"Not expanded!")
         pass
     node.to_expand = node.placements[:quantity]
     return node
@@ -214,52 +208,7 @@ def get_floor(game):
     for (x,y) in game:
         if y < higher_pos[x-1]:
             higher_pos[x-1] = y
-
     return higher_pos
-
-# def calculate_piece_plays(shape, game, quantity=PLACEMENTS_LIM):
-#     placements = get_possible_placements(shape, get_floor(game))
-#     best_placements = []
-
-#     for placement in placements:
-#         score = evaluate_placement(placement, game, STRATEGY)
-
-#         if len(best_placements) < quantity:
-#             best_placements.append( (placement, score) )
-#         else:
-#             min_score = None
-#             min_index = None
-#             for i in range(quantity):
-#                 if min_score is None or best_placements[i][1] < min_score:
-#                     min_score = best_placements[i][1]
-#                     min_index = i
-#             if score > min_score:
-#                 best_placements[min_index] = (placement, score)
-    
-#     return best_placements
-
-# def get_best_placement(game, shape, next, lookahead=0, piece_idx=0, weight=1, placement_lim=1000):
-#     #print('   '*piece_idx,piece_idx, lookahead)
-#     placements = calculate_piece_plays(shape, game, placement_lim)
-#     best_placement = None
-#     if lookahead != 0:
-#         for placement in placements:
-#             #print('   '*piece_idx,"placement before:", placement)
-#             next_game = game + placement[0]
-#             _, next_game = count_lines_cleared(next_game)
-#             next_shape = identify_shape(next[piece_idx])
-#             new_placement = (placement[0], weight*placement[1] + get_best_placement(next_game, next_shape, next, lookahead-1, piece_idx+1, LOOK_AHEAD_WEIGHT[piece_idx+1], PLACEMENTS_LIM[piece_idx+1])[1])
-#             #print('   '*piece_idx,"placement:", new_placement)
-#             if not best_placement or new_placement[1] > best_placement[1]:
-#                 best_placement = new_placement
-#         return best_placement    
-#     else:
-#         for placement in placements:
-#             #print('   '*piece_idx,"terminal placement:", placement)
-#             if not best_placement or placement[1] > best_placement[1]:
-#                 best_placement = (placement[0], weight*placement[1])
-#         return best_placement
-
 
 # TODO IMPROVEMENT: rather than counting individual cells as different holes,
 # count vertical gaps as one hole, or adjacent empty cells as one hole
@@ -275,8 +224,6 @@ def get_floor(game):
 
 def get_holes(game, floor, mode="individual"):
     """ Get number of holes in game state """
-    #print("get_holes - floor:", floor)
-    #print("get_holes - game:", game)
 
     if mode == "individual":
         n_holes = sum( HEIGHT - y for y in floor ) - len(game)
