@@ -1,6 +1,6 @@
 import asyncio
 from collections import Counter
-from copy import copy, deepcopy
+from copy import deepcopy
 import getpass
 import json
 import os
@@ -10,18 +10,19 @@ import time
 
 import websockets
 
-import random
 
 WIDTH = 8
 HEIGHT = 30
 
 SPEED_RUN = True
 #PLACEMENTS_LIM = 3      # number of placements to consider for look ahead
-PLACEMENTS_LIM = [2,2,1,0]
+PLACEMENTS_LIM = [2,2,2,0]
 LOOK_AHEAD = 2
 #LOOK_AHEAD_WEIGHT = 2
-LOOK_AHEAD_WEIGHT = [1,2,3,0]
+LOOK_AHEAD_WEIGHT = [1,1,2,0]
 STRATEGY = "clear_lines"  # valid strategies: "clear_lines"
+
+floor_layouts = dict()
 
 
 async def agent_loop(server_address="localhost:8000", agent_name="student"):
@@ -69,26 +70,8 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                         curr_shape = identify_shape(curr_piece)
                         #print("Peca Identificada:", curr_shape)
 
-                    # best_placements = calculate_piece_plays(curr_shape, curr_game)
-                    # #print("best placements: " + str(best_placements))
-
-                    # bestest_placement = None  # gud variable name
-                    # for i in range(len(best_placements)):
-                    #     if next_pieces:
-                    #         placement = best_placements[i]
-                    #         next_game = curr_game.copy()
-                    #         next_game.extend(placement[0])
-                    #         _, next_game = count_lines_cleared( next_game )
-                    #         next_placements = calculate_piece_plays(identify_shape(next_pieces[0]), next_game, 1)
-                    #         #print("weird champ", next_placements)
-                    #         best_placements[i] = (best_placements[i][0], next_placements[0][1] * LOOK_AHEAD_WEIGHT)
-
-                    #     if not bestest_placement or best_placements[i][1] > bestest_placement[1]:
-                    #         bestest_placement = best_placements[i]
-
 
                     # !!! Recursive Lookahead 
-                    # params: curr_game,curr_shape,next_pieces,1,0,LOOK_AHEAD_WEIGHT,1 should produce roughly the same score as above
                     #print("=====")
                     bestest_placement = get_best_placement(curr_game,curr_shape,next_pieces,LOOK_AHEAD,0,LOOK_AHEAD_WEIGHT[0],PLACEMENTS_LIM[0])
                     #print(bestest_placement)
@@ -125,6 +108,9 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                 #print("Server has cleanly disconnected us")
                 print(score)
                 print("average time:", times_sum/process_counter)
+                #print("20 most frequent floors:")
+                #for key, val in sorted(floor_layouts.items(), key=lambda i: i[1], reverse=True)[:20]:
+                #    print("   ", key, val)
                 return
 
 def get_best_placement(game, shape, next, lookahead=0, piece_idx=0, weight=1, placement_lim=1000):
@@ -157,6 +143,10 @@ def get_floor(game):
         if y < higher_pos[x-1]:
             higher_pos[x-1] = y
 
+    #min_height = min(higher_pos)
+    #minimized_floor = tuple( y - min_height for y in higher_pos )
+    #floor_layouts[minimized_floor] = floor_layouts.get(minimized_floor, 0) +1
+
     return higher_pos
 
 
@@ -179,15 +169,6 @@ def get_holes(game, floor, mode="individual"):
 
     if mode == "individual":
         n_holes = sum( HEIGHT - y for y in floor ) - len(game)
-    if mode == "group_vertical":
-
-        new_hole = True
-
-        for i in range(len(floor)):
-            for game_y in range(HEIGHT-floor[i]):
-                pass
-                
-
 
     #print("get_holes - number:", n_holes)
     return n_holes
@@ -252,73 +233,75 @@ def identify_shape(piece, output = False):
 def get_possible_placements(piece_shape, floor):
     """ Returns all possible placements for the given piece 
     Returns a list of coordinate lists."""
-    lst = []
-    copy_shape : Shape = deepcopy(piece_shape)
-    # print("nova peca")
 
-    for i in range(len(copy_shape.plan)): # para cada rotation
-        pos = copy_shape.positions 
-        
-        minY = HEIGHT
-        minX = WIDTH
-        maxX = 0
-        for (x,y) in pos:
-            if y < minY:
-                minY = y
-            if x < minX:
-                minX = x
-            if x > maxX:
-                maxX =x
-        
+    height_offset = min(floor)
+    minimized_floor = tuple( y - height_offset for y in floor )
 
-        pos = [[x-minX+1,y-minY] for (x,y) in pos]
-        # pos = posicoes na extrema esquerda e no topo ☭ 
+    floor_layout = floor_layouts.get(minimized_floor, None)
+    if floor_layout is not None:
+        positions = floor_layout.get(piece_shape, None)
+    else:
+        positions = None
 
-        rightmost_x = maxX - minX + 1
+    if positions:
+        return [ [ list(coord[0], coord[1]+height_offset) for coord in pos ] for pos in positions ]
+    else:
+        lst = []
+        cached_lst = []
+        copy_shape : Shape = deepcopy(piece_shape)
+        # print("nova peca")
 
-        while rightmost_x <= WIDTH: # da esquerda para a direita
-
-            dic = {}
-            for (x,y) in pos:
-                if x not in dic or dic[x] < y:
-                    dic[x] = y
-
-            height_diff = None
-            for x,y in dic.items():
-                dif = floor[x-1] - y
-                if height_diff is None or dif < height_diff:
-                    height_diff = dif
-
-            new_pos = [[x,y + height_diff - 1] for x,y in pos]
-            # print("new_pos:", new_pos)
-            # print("pos:", pos)
-            # print("rightmost_x:", rightmost_x)
-            lst.append(new_pos)
-
-            # inside_pos = deepcopy(pos)
-
-            # hadContact = False
-
-            # while not hadContact:
-
-            #     for j in range(rightmost_x): # para cada floor ate o x maximo
-            #         floor_y = floor[j]
-            #         for (x,y) in inside_pos: # para cada posicao da peca
-            #             if x == j+1 and floor_y == y: # ocorreu contato dessa posicao com o chao
-            #                 #print("Found a placement")
-            #                 lst.append([[posx, posy - 1] for (posx, posy) in inside_pos]) # adicionar as pos com y - 1
-            #                 hadContact = True
-            #                 break
-            #         if hadContact:
-            #             break
-            #     inside_pos = [[x, y+1] for (x,y) in inside_pos] # se nao houve contato, vamos descer a peca
+        for i in range(len(copy_shape.plan)): # para cada rotation
+            pos = copy_shape.positions 
             
-            pos = [[x+1,y] for (x,y) in pos]
+            minY = HEIGHT
+            minX = WIDTH
+            maxX = 0
+            for (x,y) in pos:
+                if y < minY:
+                    minY = y
+                if x < minX:
+                    minX = x
+                if x > maxX:
+                    maxX =x
+            
+            pos = [[x-minX+1,y-minY] for (x,y) in pos]
+            # pos = posicoes na extrema esquerda e no topo ☭ 
 
-            rightmost_x += 1
-        copy_shape.rotate()
+            rightmost_x = maxX - minX + 1
+
+            while rightmost_x <= WIDTH: # da esquerda para a direita
+
+                dic = {}
+                for (x,y) in pos:
+                    if x not in dic or dic[x] < y:
+                        dic[x] = y
+
+                height_diff = None
+                for x,y in dic.items():
+                    dif = floor[x-1] - y
+                    if height_diff is None or dif < height_diff:
+                        height_diff = dif
+
+                new_pos = [[x,y + height_diff - 1] for x,y in pos]
+                cached_pos = [[x, y + height_diff - 1 - height_offset ] for x,y in pos]
+                # print("new_pos:", new_pos)
+                # print("pos:", pos)
+                # print("rightmost_x:", rightmost_x)
+                lst.append(new_pos)
+                cached_lst.append(cached_pos)
                 
-    return lst
+                pos = [[x+1,y] for (x,y) in pos]
+
+                rightmost_x += 1
+            copy_shape.rotate()
+        
+        if floor_layout is None:
+            floor_layout = dict()
+            floor_layouts[minimized_floor] = floor_layout
+        floor_layout[piece_shape] = cached_lst
+
+        return lst
 
 
 
@@ -332,7 +315,7 @@ def evaluate_placement(placement, game, strategy):
 
     # penalties
     holes_value = 20
-    height_value = 2#3
+    height_value = 4
     deep_pits_value = 24
     absolute_height_value = 8          # the penalty for letting the building go higher
     global_height_mult = 2              # multiplies height_value and line_clear_value after floor crosses certain threshold
