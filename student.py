@@ -109,11 +109,11 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                 print(score)
                 print("average time:", times_sum/process_counter)
 
-                print("floor_layouts:")
-                for key, val in floor_layouts.items():
-                    print(key, ":")
-                    for k, v in val.items():
-                        print("    ", k, ":", v[1])
+                #print("floor_layouts:")
+                #for key, val in floor_layouts.items():
+                #    print(key, ":")
+                #    for k, v in val.items():
+                #        print("    ", k, ":", v[1])
                     #    for p in v:
                     #        print("        ", p)
                 return
