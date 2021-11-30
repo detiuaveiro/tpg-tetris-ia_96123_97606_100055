@@ -16,10 +16,10 @@ HEIGHT = 30
 
 SPEED_RUN = True
 #PLACEMENTS_LIM = 3      # number of placements to consider for look ahead
-PLACEMENTS_LIM = [2,2,2,0]
+PLACEMENTS_LIM = [2,2,1,0]
 LOOK_AHEAD = 2
 #LOOK_AHEAD_WEIGHT = 2
-LOOK_AHEAD_WEIGHT = [1,1,2,0]
+LOOK_AHEAD_WEIGHT = [1,2,3,0]
 STRATEGY = "clear_lines"  # valid strategies: "clear_lines"
 
 floor_layouts = dict()
@@ -108,9 +108,14 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                 #print("Server has cleanly disconnected us")
                 print(score)
                 print("average time:", times_sum/process_counter)
-                #print("20 most frequent floors:")
-                #for key, val in sorted(floor_layouts.items(), key=lambda i: i[1], reverse=True)[:20]:
-                #    print("   ", key, val)
+
+                print("floor_layouts:")
+                for key, val in floor_layouts.items():
+                    print(key, ":")
+                    for k, v in val.items():
+                        print("    ", k, ":", v[1])
+                    #    for p in v:
+                    #        print("        ", p)
                 return
 
 def get_best_placement(game, shape, next, lookahead=0, piece_idx=0, weight=1, placement_lim=1000):
@@ -239,12 +244,13 @@ def get_possible_placements(piece_shape, floor):
 
     floor_layout = floor_layouts.get(minimized_floor, None)
     if floor_layout is not None:
-        positions = floor_layout.get(piece_shape, None)
+        positions = floor_layout.get(tuple(piece_shape.positions), None)
     else:
         positions = None
 
     if positions:
-        return [ [ list(coord[0], coord[1]+height_offset) for coord in pos ] for pos in positions ]
+        positions[1] += 1
+        return [ [ [coord[0], coord[1]+height_offset] for coord in pos ] for pos in positions[0] ]
     else:
         lst = []
         cached_lst = []
@@ -299,7 +305,7 @@ def get_possible_placements(piece_shape, floor):
         if floor_layout is None:
             floor_layout = dict()
             floor_layouts[minimized_floor] = floor_layout
-        floor_layout[piece_shape] = cached_lst
+        floor_layout[tuple(piece_shape.positions)] = [cached_lst, 1]
 
         return lst
 
@@ -315,7 +321,7 @@ def evaluate_placement(placement, game, strategy):
 
     # penalties
     holes_value = 20
-    height_value = 4
+    height_value = 4.5
     deep_pits_value = 24
     absolute_height_value = 8          # the penalty for letting the building go higher
     global_height_mult = 2              # multiplies height_value and line_clear_value after floor crosses certain threshold
