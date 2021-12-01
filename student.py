@@ -29,14 +29,19 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
         # Receive information about static game properties
         await websocket.send(json.dumps({"cmd": "join", "name": agent_name}))
 
-        curr_game = None # to decides if a piece is new or not
+        curr_game = None
         curr_piece = []
         inputs = []
+        send_inputs = False
         is_new_piece = True
         score = 0
 
+        expected_next_piece = None
+        last_key = ""
+
         times_sum = 0
         process_counter = 0
+
         while True:
             try:
                 state = json.loads(
@@ -50,13 +55,13 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                     continue
 
                 score = state["score"]
+                curr_game = state["game"]
+                curr_piece = state["piece"]
 
                 if is_new_piece:
                     #print("Calculating best move...")
                     tic = time.perf_counter()
 
-                    curr_game = state["game"]
-                    curr_piece = state["piece"]
                     next_pieces = state["next_pieces"]
 
                     if not curr_piece:
@@ -73,6 +78,8 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                     # get commands to perform best placement
                     inputs = determine_moves(curr_shape, bestest_placement[0])
                     if SPEED_RUN: inputs.append("s")
+                    send_inputs = True
+                    expected_next_piece = curr_piece[:]
 
                     is_new_piece = False
                     #print("inputs to perform: " + str(inputs))
@@ -86,9 +93,35 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                     is_new_piece = True
 
                 else:
-                    key = inputs.pop(0) if inputs else ""
-                    #print(f"sent '{key}'")
+                    if send_inputs:
+                        # check if curr_piece received from server matches what the agent expected
+                        #print(expected_next_piece)
+                        #print(curr_piece)
 
+                        if expected_next_piece == curr_piece:
+                            key = inputs.pop(0) if inputs else ""
+
+                            if key == "s" or key == "":
+                                send_inputs = False
+                            else:
+                                shape = identify_shape(curr_piece)
+                                if key == "w":
+                                    shape.rotate()
+                                    shape.translate(0, 1)
+                                elif key == "a":
+                                    shape.translate(-1, 1)
+                                elif key == "d":
+                                    shape.translate(1, 1)
+                                expected_next_piece = [ [x,y] for x,y in shape.positions ]
+                                last_key = key
+                        else:
+                            print("desync! resending...")
+                            key = last_key
+                            expected_next_piece = [ [x, y+1] for x,y in expected_next_piece ]
+                    else:
+                        key = ""
+                
+                    #print(f"sent '{key}'")
                     # Send key to game server
                     await websocket.send(
                             json.dumps({"cmd": "key", "key": key})
@@ -406,6 +439,9 @@ def needs_rotating(piece_coord, placement):
             break
     return needsRotation
 
+
+def rotate_piece(piece, step=1):
+    pass
 
 # DO NOT CHANGE THE LINES BELLOW
 # You can change the default values using the command line, example:
