@@ -1,6 +1,6 @@
 import asyncio
 from collections import Counter
-from copy import copy, deepcopy
+from copy import deepcopy
 import getpass
 import json
 import os
@@ -10,7 +10,6 @@ import time
 
 import websockets
 
-import random
 
 WIDTH = 8
 HEIGHT = 30
@@ -21,7 +20,7 @@ PLACEMENTS_LIM = [2,2,1,0]
 LOOK_AHEAD = 2
 #LOOK_AHEAD_WEIGHT = 2
 LOOK_AHEAD_WEIGHT = [1,2,3,0]
-STRATEGY = "clear_lines"  # valid strategies: "clear_lines"
+STRATEGY = "clear_lines"  # valid strategies: "clear_lines", "penalties_only"
 
 
 async def agent_loop(server_address="localhost:8000", agent_name="student"):
@@ -56,39 +55,17 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                     #print("Calculating best move...")
                     tic = time.perf_counter()
 
-
                     curr_game = state["game"]
                     curr_piece = state["piece"]
                     next_pieces = state["next_pieces"]
 
-
                     if not curr_piece:
                         curr_piece = state["piece"]
-                    #print("peca foda:", curr_piece)
                     if curr_piece:
                         curr_shape = identify_shape(curr_piece)
                         #print("Peca Identificada:", curr_shape)
 
-                    # best_placements = calculate_piece_plays(curr_shape, curr_game)
-                    # #print("best placements: " + str(best_placements))
-
-                    # bestest_placement = None  # gud variable name
-                    # for i in range(len(best_placements)):
-                    #     if next_pieces:
-                    #         placement = best_placements[i]
-                    #         next_game = curr_game.copy()
-                    #         next_game.extend(placement[0])
-                    #         _, next_game = count_lines_cleared( next_game )
-                    #         next_placements = calculate_piece_plays(identify_shape(next_pieces[0]), next_game, 1)
-                    #         #print("weird champ", next_placements)
-                    #         best_placements[i] = (best_placements[i][0], next_placements[0][1] * LOOK_AHEAD_WEIGHT)
-
-                    #     if not bestest_placement or best_placements[i][1] > bestest_placement[1]:
-                    #         bestest_placement = best_placements[i]
-
-
                     # !!! Recursive Lookahead 
-                    # params: curr_game,curr_shape,next_pieces,1,0,LOOK_AHEAD_WEIGHT,1 should produce roughly the same score as above
                     #print("=====")
                     bestest_placement = get_best_placement(curr_game,curr_shape,next_pieces,LOOK_AHEAD,0,LOOK_AHEAD_WEIGHT[0],PLACEMENTS_LIM[0])
                     #print(bestest_placement)
@@ -126,6 +103,7 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                 print(score)
                 print("average time:", times_sum/process_counter)
                 return
+
 
 def get_best_placement(game, shape, next, lookahead=0, piece_idx=0, weight=1, placement_lim=1000):
     #print('   '*piece_idx,piece_idx, lookahead)
@@ -180,15 +158,7 @@ def get_holes(game, floor, mode="individual"):
     if mode == "individual":
         n_holes = sum( HEIGHT - y for y in floor ) - len(game)
     if mode == "group_vertical":
-
-        new_hole = True
-
-        for i in range(len(floor)):
-            for game_y in range(HEIGHT-floor[i]):
-                pass
-                
-
-
+        pass
     #print("get_holes - number:", n_holes)
     return n_holes
 
@@ -238,8 +208,6 @@ def identify_shape(piece, output = False):
         shape.set_pos(piece[0][0] - 2, piece[0][1] - 1)
         if output:
             print("Output: T")
-
-    
 
     return shape
 
@@ -294,24 +262,6 @@ def get_possible_placements(piece_shape, floor):
             # print("pos:", pos)
             # print("rightmost_x:", rightmost_x)
             lst.append(new_pos)
-
-            # inside_pos = deepcopy(pos)
-
-            # hadContact = False
-
-            # while not hadContact:
-
-            #     for j in range(rightmost_x): # para cada floor ate o x maximo
-            #         floor_y = floor[j]
-            #         for (x,y) in inside_pos: # para cada posicao da peca
-            #             if x == j+1 and floor_y == y: # ocorreu contato dessa posicao com o chao
-            #                 #print("Found a placement")
-            #                 lst.append([[posx, posy - 1] for (posx, posy) in inside_pos]) # adicionar as pos com y - 1
-            #                 hadContact = True
-            #                 break
-            #         if hadContact:
-            #             break
-            #     inside_pos = [[x, y+1] for (x,y) in inside_pos] # se nao houve contato, vamos descer a peca
             
             pos = [[x+1,y] for (x,y) in pos]
 
@@ -328,11 +278,10 @@ def evaluate_placement(placement, game, strategy):
 
     # incentives
     line_clear_value = 3
-    value_tetris = True
 
     # penalties
     holes_value = 20
-    height_value = 2#3
+    height_value = 5
     deep_pits_value = 24
     absolute_height_value = 8          # the penalty for letting the building go higher
     global_height_mult = 2              # multiplies height_value and line_clear_value after floor crosses certain threshold
@@ -341,9 +290,9 @@ def evaluate_placement(placement, game, strategy):
 
     # Set value of criteria according to strategy
     if strategy == "clear_lines":
-        value_tetris = False
         line_clear_value = 10
-
+    elif strategy == "penalties_only":
+        line_clear_value = 0
 
     new_game = game + placement     
     lines_cleared, new_game = count_lines_cleared(new_game)

@@ -1,0 +1,93 @@
+PLACEMENTS_LIM = [2,2,1,0]
+LOOK_AHEAD = 2
+LOOK_AHEAD_WEIGHT = [1,2,3,0]
+holes_value = 20
+height_value = 4
+deep_pits_value = 24
+absolute_height_value = 8
+"clear_lines" strategy (line value 10)
+-----------------------------------------------
+2261
+average time: 0.0024693674641416054
+1633
+average time: 0.002604714757135697
+1844
+average time: 0.0024784277174528793
+1771
+average time: 0.002745222382973135
+1702
+average time: 0.0026051873790927365
+712
+average time: 0.002878222283041587
+================================================
+
+PLACEMENTS_LIM = [2,2,1,0]
+LOOK_AHEAD = 2
+LOOK_AHEAD_WEIGHT = [1,2,3,0]
+holes_value = 20
+height_value = 4.5
+deep_pits_value = 24
+absolute_height_value = 8
+"clear_lines" strategy (line value 10)
+------------------------------------------------
+2205
+average time: 0.0025083536315597082
+2020
+average time: 0.0024999748899548375
+2202
+average time: 0.0024517029809167663
+1995
+average time: 0.00243462248842524
+1449
+average time: 0.0024843204578941297
+1970
+average time: 0.0024873850024270004
+2024
+average time: 0.002614913615037959
+2026
+average time: 0.002612194288184755
+================================================
+
+PLACEMENTS_LIM = [2,2,1,0]
+LOOK_AHEAD = 2
+LOOK_AHEAD_WEIGHT = [1,2,3,0]
+holes_value = 20
+height_value = 5
+deep_pits_value = 24
+absolute_height_value = 8
+"clear_lines" strategy (line value 10)
+------------------------------------------------
+1932
+average time: 0.0025265142131880203
+1102
+average time: 0.002512409911937386
+1869
+average time: 0.0024788727947192245
+2012
+average time: 0.002493036858502509
+1855
+average time: 0.0025196899260134862
+1852
+average time: 0.002531583492844874
+================================================
+
+PLACEMENTS_LIM = [2,2,1,0]
+LOOK_AHEAD = 2
+LOOK_AHEAD_WEIGHT = [1,2,3,0]
+holes_value = 20
+height_value = 5
+deep_pits_value = 24
+absolute_height_value = 8
+"penalties_only" strategy (line value 0)
+------------------------------------------------
+1916
+average time: 0.0025937454811516083
+1893
+average time: 0.0026330921471841937
+2042
+average time: 0.002535454798509508
+635
+average time: 0.0026596673552974686
+1262
+average time: 0.002664474072814429
+================================================
