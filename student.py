@@ -63,6 +63,7 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                         curr_piece = state["piece"]
                     if curr_piece:
                         curr_shape = identify_shape(curr_piece)
+                        if curr_shape is None: continue
                         #print("Peca Identificada:", curr_shape)
 
                     # !!! Recursive Lookahead 
@@ -81,10 +82,6 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                     times_sum += toc
                     #print("Time to calculate:", toc)
 
-
-                if state["piece"] is None:
-                    is_new_piece = True
-
                 else:
                     key = inputs.pop(0) if inputs else ""
                     #print(f"sent '{key}'")
@@ -94,9 +91,8 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                             json.dumps({"cmd": "key", "key": key})
                         ) 
 
-            except KeyError:
-                print("average time:", times_sum/process_counter)
-                pass
+                if state["piece"] is None:
+                    is_new_piece = True
 
             except websockets.exceptions.ConnectionClosedOK:
                 #print("Server has cleanly disconnected us")
@@ -166,6 +162,8 @@ def identify_shape(piece, output = False):
     """ returns what shape the points represent """
     
     #print("Input Peca:", piece)
+
+    shape = None
 
     if piece[0][0] == piece[1][0] == piece[2][0] < piece[3][0]:
         shape = Shape(L)
