@@ -14,12 +14,10 @@ import websockets
 WIDTH = 8
 HEIGHT = 30
 
-SPEED_RUN = True
-#PLACEMENTS_LIM = 3      # number of placements to consider for look ahead
-PLACEMENTS_LIM = [2,2,1,0]
-LOOK_AHEAD = 2
-LOOK_AHEAD_WEIGHT = [1,1,1,0]
-STRATEGY = "clear_lines"  # valid strategies: "clear_lines", "penalties_only"
+SPEED_RUN = True              # when True, use Hard Drop ('s' input)
+LOOK_AHEAD = 2                # number of pieces to use for lookahead, where 0 is current piece only
+PLACEMENTS_LIM = [2,2,1,0]    # number of placements to consider for look ahead, for each successive piece
+LOOK_AHEAD_WEIGHT = [1,1,1,0] # weight given the game state's score after placement, for each successive piece
 
 
 async def agent_loop(server_address="localhost:8000", agent_name="student"):
@@ -28,7 +26,7 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
         # Receive information about static game properties
         await websocket.send(json.dumps({"cmd": "join", "name": agent_name}))
 
-        curr_game = None # to decides if a piece is new or not
+        curr_game = None
         curr_piece = []
         inputs = []
         is_new_piece = True
@@ -44,7 +42,7 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                 # state contains: game, piece, next_pieces, game_speed and score
 
                 if state.get("game") is None: # The dimensions of the game
-                    WIDTH = state["dimensions"][0] - 2 # Quando e 10, utilizamos 8 no algoritmo
+                    WIDTH = state["dimensions"][0] - 2 # Two of the columns are walls, non-playable area
                     HEIGHT = state["dimensions"][1]
                     continue
 
@@ -193,7 +191,7 @@ def identify_shape(piece, output = False):
 
 # TODO IMPROVEMENT: only one command can be sent per frame, meaning that moving or rotating a piece will also
 # drop it by 1, so take that into account when determining positions, as there may not be enough frames to
-# perform the action
+# perform the action  -- actually, it's not really worth the effort
 
 def get_possible_placements(piece_shape, floor):
     """ Returns all possible placements for the given piece 
@@ -216,7 +214,6 @@ def get_possible_placements(piece_shape, floor):
             if x > maxX:
                 maxX =x
         
-
         pos = [[x-minX+1,y-minY] for (x,y) in pos]
         # pos = posicoes na extrema esquerda e no topo ☭ 
 
@@ -251,8 +248,8 @@ def get_possible_placements(piece_shape, floor):
 
 
 # will be used to choose the best possible placement
-def evaluate_placement(placement, game, strategy=None):
-    """ Returns a placement's calculated score according to strategy. Higher score means better placement.
+def evaluate_placement(placement, game):
+    """ Returns a placement's calculated score. Higher score means better placement.
         Heuristics and constants based on https://codemyroad.wordpress.com/2013/04/14/tetris-ai-the-near-perfect-player/ ,
         with some of our own experimenting.
     """
@@ -291,7 +288,7 @@ def calculate_piece_plays(shape, game, quantity=PLACEMENTS_LIM):
     best_placements = []
 
     for placement in placements:
-        score = evaluate_placement(placement, game, STRATEGY)
+        score = evaluate_placement(placement, game)
 
         if len(best_placements) < quantity:
             best_placements.append( (placement, score) )
@@ -322,29 +319,6 @@ def count_lines_cleared(game):
             ]  # remove row and drop lines
             lines += 1
     return lines, new_game
-
-#def count_lines_cleared(game):
-#    """ Return number of lines to be cleared in the given game state, and the new game state after clearing them """
-#    new_game = []
-#    game_dic = dict()
-#
-#    for x, y in game:
-#        if y not in game_dic:
-#            game_dic[y] = []
-#        game_dic[y].append(x)
-#
-#        if len(game_dic[y]) == WIDTH:
-#            game_dic.pop(y)
-#
-#    jump = 0
-#    for y in range(HEIGHT-1, -1, -1):
-#        xx = game_dic.get(y, None)
-#        if xx is None:
-#            jump += 1
-#        else:
-#            new_game.extend( (x, y+jump) for x in xx )
-#
-#    return jump, new_game
     
 
 def determine_moves(piece, placement):
