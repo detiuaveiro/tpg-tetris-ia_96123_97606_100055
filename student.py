@@ -68,7 +68,9 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                     # !!! Recursive Lookahead 
                     #print("=====")
                     bestest_placement = get_best_placement(curr_game,curr_shape,next_pieces,LOOK_AHEAD,0,LOOK_AHEAD_WEIGHT[0],PLACEMENTS_LIM[0])
-                    if bestest_placement is None: continue
+                    if bestest_placement is None:
+                        print("what")
+                        continue
                     #print(bestest_placement)
                     
                     # get commands to perform best placement
@@ -82,8 +84,8 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                     times_sum += toc
                     #print("Time to calculate:", toc)
 
-                if inputs:
-                    key = inputs.pop(0)
+                else:
+                    key = inputs.pop(0) if inputs else ""
                     #print(f"sent '{key}'")
 
                     # Send key to game server
