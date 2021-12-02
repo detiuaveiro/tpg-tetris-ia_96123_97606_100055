@@ -18,7 +18,6 @@ SPEED_RUN = True
 #PLACEMENTS_LIM = 3      # number of placements to consider for look ahead
 PLACEMENTS_LIM = [2,2,1,0]
 LOOK_AHEAD = 2
-#LOOK_AHEAD_WEIGHT = 2
 LOOK_AHEAD_WEIGHT = [1,1,1,0]
 STRATEGY = "clear_lines"  # valid strategies: "clear_lines", "penalties_only"
 
@@ -328,7 +327,6 @@ def calculate_piece_plays(shape, game, quantity=PLACEMENTS_LIM):
     return best_placements
 
 
-
 def count_lines_cleared(game):
     """ Return number of lines to be cleared in the given game state, and the new game state after clearing them """
     lines = 0
@@ -338,11 +336,34 @@ def count_lines_cleared(game):
         if count == WIDTH:
             new_game = [
                 (x, y + 1) if y < item else (x, y)
-                for (x, y) in game
+                for (x, y) in new_game
                 if y != item
             ]  # remove row and drop lines
             lines += 1
     return lines, new_game
+
+#def count_lines_cleared(game):
+#    """ Return number of lines to be cleared in the given game state, and the new game state after clearing them """
+#    new_game = []
+#    game_dic = dict()
+#
+#    for x, y in game:
+#        if y not in game_dic:
+#            game_dic[y] = []
+#        game_dic[y].append(x)
+#
+#        if len(game_dic[y]) == WIDTH:
+#            game_dic.pop(y)
+#
+#    jump = 0
+#    for y in range(HEIGHT-1, -1, -1):
+#        xx = game_dic.get(y, None)
+#        if xx is None:
+#            jump += 1
+#        else:
+#            new_game.extend( (x, y+jump) for x in xx )
+#
+#    return jump, new_game
     
 
 def determine_moves(piece, placement):
