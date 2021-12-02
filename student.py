@@ -68,6 +68,7 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                     # !!! Recursive Lookahead 
                     #print("=====")
                     bestest_placement = get_best_placement(curr_game,curr_shape,next_pieces,LOOK_AHEAD,0,LOOK_AHEAD_WEIGHT[0],PLACEMENTS_LIM[0])
+                    if bestest_placement is None: continue
                     #print(bestest_placement)
                     
                     # get commands to perform best placement
@@ -81,8 +82,8 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                     times_sum += toc
                     #print("Time to calculate:", toc)
 
-                else:
-                    key = inputs.pop(0) if inputs else ""
+                if inputs:
+                    key = inputs.pop(0)
                     #print(f"sent '{key}'")
 
                     # Send key to game server
@@ -102,6 +103,8 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
 
 def get_best_placement(game, shape, next, lookahead=0, piece_idx=0, weight=1, placement_lim=1000):
     #print('   '*piece_idx,piece_idx, lookahead)
+    if shape is None: return None
+
     placements = calculate_piece_plays(shape, game, placement_lim)
     best_placement = None
     if lookahead != 0:
@@ -132,30 +135,6 @@ def get_floor(game):
 
     return higher_pos
 
-
-# TODO IMPROVEMENT: rather than counting individual cells as different holes,
-# count vertical gaps as one hole, or adjacent empty cells as one hole
-# 
-#  4 Holes or 3 holes? to be determined
-#
-#    OOOOO            
-#    O OOO
-#    O  OO    
-#    OOO O
-#    O OOO
-#    OOOOO
-
-def get_holes(game, floor, mode="individual"):
-    """ Get number of holes in game state """
-    #print("get_holes - floor:", floor)
-    #print("get_holes - game:", game)
-
-    if mode == "individual":
-        n_holes = sum( HEIGHT - y for y in floor ) - len(game)
-    if mode == "group_vertical":
-        pass
-    #print("get_holes - number:", n_holes)
-    return n_holes
 
 def identify_shape(piece, output = False):
     """ returns what shape the points represent """
