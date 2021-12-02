@@ -19,7 +19,7 @@ SPEED_RUN = True
 PLACEMENTS_LIM = [2,2,1,0]
 LOOK_AHEAD = 2
 #LOOK_AHEAD_WEIGHT = 2
-LOOK_AHEAD_WEIGHT = [1,2,3,0]
+LOOK_AHEAD_WEIGHT = [1,1,1,0]
 STRATEGY = "clear_lines"  # valid strategies: "clear_lines", "penalties_only"
 
 
@@ -271,59 +271,37 @@ def get_possible_placements(piece_shape, floor):
 
 
 # will be used to choose the best possible placement
-def evaluate_placement(placement, game, strategy):
-    """ Returns a placement's calculated score according to strategy. Higher score means better placement """
+def evaluate_placement(placement, game, strategy=None):
+    """ Returns a placement's calculated score according to strategy. Higher score means better placement.
+        Heuristics and constants based on https://codemyroad.wordpress.com/2013/04/14/tetris-ai-the-near-perfect-player/ ,
+        with some of our own experimenting.
+    """
 
-    # incentives
-    line_clear_value = 3
+    # constants for score calculation
+    line_clear_value = 0.76
+    height_value = -0.51
+    holes_value = -0.356
+    bumpiness_value = -0.184
 
-    # penalties
-    holes_value = 20
-    height_value = 5
-    deep_pits_value = 24
-    absolute_height_value = 8          # the penalty for letting the building go higher
-    global_height_mult = 2              # multiplies height_value and line_clear_value after floor crosses certain threshold
-    global_height_threshold = 0        # from what Y does the global_height_mult take effect
-    
-
-    # Set value of criteria according to strategy
-    if strategy == "clear_lines":
-        line_clear_value = 10
-    elif strategy == "penalties_only":
-        line_clear_value = 0
-
+    # get game state after placement
     new_game = game + placement     
     lines_cleared, new_game = count_lines_cleared(new_game)
     new_floor = get_floor(new_game)
-    n_holes = get_holes(new_game, new_floor)
 
-    highest_point = min(new_floor)
-    #height_difference_score = highest_point*2 - max(new_floor) if value_tetris else 0
+    # calculate heuristics
     height_sum = 0
-    deep_pits = 0
+    bumpiness = 0
     for i in range(len(new_floor)):
-        #height_difference_score += new_floor[i] - highest_point
-        height_sum += new_floor[i]
-        # determine how many pits there are with depth greater than 2, relative to their least tall neighbor
-        left_height = new_floor[i-1] if i < 0 else -1
-        right_height = new_floor[i+1] if i < len(new_floor) -1 else -1
-        deep_pits += new_floor[i] - max(left_height, right_height) > 2
-
-    avg_height = height_sum/WIDTH
-    height_difference_score = sum( abs(avg_height - y) for y in new_floor )  # sum of deltas
+        height_sum += HEIGHT - new_floor[i]
+        if i < len(new_floor)-1:
+            bumpiness += abs(new_floor[i]-new_floor[i+1])
+    n_holes = height_sum - len(new_game)
     
-
-    # print(f"EVALUATE - lines_cleared: {lines_cleared}, after multiplier: {lines_cleared*line_clear_value}")
-    # print(f"EVALUATE - n_holes: {n_holes}, after multiplier: {n_holes*holes_value}")
-    # print(f"EVALUATE - height_difference_score: {height_difference_score}, after multiplier: {height_difference_score*height_value}")
-    # print(f"EVALUATE - deep_pits_score: {deep_pits}, after multiplier: {deep_pits*deep_pits_value}")
-
     # calculate score
-    score = lines_cleared * line_clear_value * ( global_height_mult if highest_point < global_height_threshold else 1 )
-    score -= n_holes * holes_value
-    score -= height_difference_score * height_value * ( global_height_mult if highest_point < global_height_threshold else 1 )
-    score -= deep_pits * deep_pits_value
-    score -= (HEIGHT - highest_point) * absolute_height_value
+    score = lines_cleared * line_clear_value
+    score += n_holes * holes_value
+    score += height_sum * height_value
+    score += bumpiness * bumpiness_value
 
     return score
 

@@ -1,0 +1,28 @@
+PLACEMENTS_LIM = [2,2,1,0]
+LOOK_AHEAD = 2
+LOOK_AHEAD_WEIGHT = [1,2,3,0]
+holes_value = 22
+height_value = 4.5
+deep_pits_value = 24
+absolute_height_value = 10
+--------------------------------------
+3303
+average time: 0.0025774544199720227
+2769
+average time: 0.002596829872105482
+3459
+average time: 0.00249884760924363
+2942
+average time: 0.002584966685358581
+3201
+average time: 0.0025667926236483014
+3516
+average time: 0.0025195593626961654
+27
+average time: 0.0033308563780903226
+1091
+average time: 0.0028620142762397164
+4381
+average time: 0.0024698780285238434
+######################################
+
