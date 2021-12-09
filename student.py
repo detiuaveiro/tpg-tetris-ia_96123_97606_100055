@@ -29,8 +29,8 @@ import time
 import websockets
 
 
-WIDTH = 8
-HEIGHT = 30
+# WIDTH = 8
+# HEIGHT = 30
 
 SPEED_RUN = True              # when True, use Hard Drop ('s' input)
 LOOK_AHEAD = 2                # number of pieces to use for lookahead, where 0 is current piece only
@@ -39,6 +39,7 @@ LOOK_AHEAD_WEIGHT = [1,1,1,0] # weight given the game state's score after placem
 
 
 async def agent_loop(server_address="localhost:8000", agent_name="student"):
+    
     async with websockets.connect(f"ws://{server_address}/player") as websocket:
 
         # Receive information about static game properties
@@ -60,6 +61,8 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                 # state contains: game, piece, next_pieces, game_speed and score
 
                 if state.get("game") is None: # The dimensions of the game
+                    global HEIGHT
+                    global WIDTH
                     WIDTH = state["dimensions"][0] - 2 # Two of the columns are walls, non-playable area
                     HEIGHT = state["dimensions"][1]
                     continue
@@ -357,7 +360,7 @@ def determine_moves(piece, placement):
     shift = abs(shift)
     for i in range(shift):
         move_set.append(letter)
-        
+
     return move_set
 
 def needs_rotating(piece_coord, placement):
