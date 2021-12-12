@@ -52,7 +52,6 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                 score = state["score"]
 
                 if is_new_piece:
-                    #print("Calculating best move...")
                     tic = time.perf_counter()
 
                     curr_game = state["game"]
@@ -64,30 +63,24 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                     if curr_piece:
                         curr_shape = identify_shape(curr_piece)
                         if curr_shape is None: continue
-                        #print("Peca Identificada:", curr_shape)
 
                     # !!! Recursive Lookahead 
-                    #print("=====")
                     bestest_placement = get_best_placement(curr_game,curr_shape,next_pieces,LOOK_AHEAD,0,LOOK_AHEAD_WEIGHT[0],PLACEMENTS_LIM[0])
                     if bestest_placement is None:
                         print("what")
                         continue
-                    #print(bestest_placement)
                     
                     # get commands to perform best placement
                     inputs = determine_moves(curr_shape, bestest_placement[0])
                     if SPEED_RUN: inputs.append("s")
 
                     is_new_piece = False
-                    #print("inputs to perform: " + str(inputs))
                     toc = time.perf_counter() - tic
                     process_counter += 1
                     times_sum += toc
-                    #print("Time to calculate:", toc)
 
                 else:
                     key = inputs.pop(0) if inputs else ""
-                    #print(f"sent '{key}'")
 
                     # Send key to game server
                     await websocket.send(
@@ -98,32 +91,27 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                     is_new_piece = True
 
             except websockets.exceptions.ConnectionClosedOK:
-                #print("Server has cleanly disconnected us")
                 print(score)
                 print("average time:", times_sum/process_counter)
                 return
 
 
 def get_best_placement(game, shape, next, lookahead=0, piece_idx=0, weight=1, placement_lim=1000):
-    #print('   '*piece_idx,piece_idx, lookahead)
     if shape is None: return None
 
     placements = calculate_piece_plays(shape, game, placement_lim)
     best_placement = None
     if lookahead != 0:
         for placement in placements:
-            #print('   '*piece_idx,"placement before:", placement)
             next_game = game + placement[0]
             _, next_game = count_lines_cleared(next_game)
             next_shape = identify_shape(next[piece_idx])
             new_placement = (placement[0], weight*placement[1] + get_best_placement(next_game, next_shape, next, lookahead-1, piece_idx+1, LOOK_AHEAD_WEIGHT[piece_idx+1], PLACEMENTS_LIM[piece_idx+1])[1])
-            #print('   '*piece_idx,"placement:", new_placement)
             if not best_placement or new_placement[1] > best_placement[1]:
                 best_placement = new_placement
         return best_placement    
     else:
         for placement in placements:
-            #print('   '*piece_idx,"terminal placement:", placement)
             if not best_placement or placement[1] > best_placement[1]:
                 best_placement = (placement[0], weight*placement[1])
         return best_placement
@@ -142,8 +130,6 @@ def get_floor(game):
 def identify_shape(piece, output = False):
     """ returns what shape the points represent """
     
-    #print("Input Peca:", piece)
-
     shape = None
 
     if piece[0][0] == piece[1][0] == piece[2][0] < piece[3][0]:
@@ -190,8 +176,6 @@ def identify_shape(piece, output = False):
 
     return shape
 
-
-
 # TODO IMPROVEMENT: only one command can be sent per frame, meaning that moving or rotating a piece will also
 # drop it by 1, so take that into account when determining positions, as there may not be enough frames to
 # perform the action  -- actually, it's not really worth the effort
@@ -201,7 +185,6 @@ def get_possible_placements(piece_shape, floor):
     Returns a list of coordinate lists."""
     lst = []
     copy_shape : Shape = deepcopy(piece_shape)
-    # print("nova peca")
 
     for i in range(len(copy_shape.plan)): # para cada rotation
         pos = copy_shape.positions 
@@ -236,9 +219,6 @@ def get_possible_placements(piece_shape, floor):
                     height_diff = dif
 
             new_pos = [[x,y + height_diff - 1] for x,y in pos]
-            # print("new_pos:", new_pos)
-            # print("pos:", pos)
-            # print("rightmost_x:", rightmost_x)
             lst.append(new_pos)
             
             pos = [[x+1,y] for (x,y) in pos]
