@@ -29,9 +29,6 @@ import time
 import websockets
 
 
-# WIDTH = 8
-# HEIGHT = 30
-
 SPEED_RUN = True              # when True, use Hard Drop ('s' input)
 LOOK_AHEAD = 2                # number of pieces to use for lookahead, where 0 is current piece only
 PLACEMENTS_LIM = [2,2,1,0]    # number of placements to consider for look ahead, for each successive piece
@@ -85,7 +82,6 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                     # !!! Recursive Lookahead 
                     bestest_placement = get_best_placement(curr_game,curr_shape,next_pieces,LOOK_AHEAD,0,LOOK_AHEAD_WEIGHT[0],PLACEMENTS_LIM[0])
                     if bestest_placement is None:
-                        print("what")
                         continue
                     
                     # get commands to perform best placement
@@ -193,10 +189,6 @@ def identify_shape(piece, output = False):
             print("Output: T")
 
     return shape
-
-# TODO IMPROVEMENT: only one command can be sent per frame, meaning that moving or rotating a piece will also
-# drop it by 1, so take that into account when determining positions, as there may not be enough frames to
-# perform the action  -- actually, it's not really worth the effort
 
 def get_possible_placements(piece_shape, floor):
     """ Returns all possible placements for the given piece 
