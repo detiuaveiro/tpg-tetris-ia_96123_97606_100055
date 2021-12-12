@@ -1,3 +1,21 @@
+################################################################################
+##                                                                            ##
+##   Trabalho por:                                                            ##
+##     Lucius Vinicius - 96123                                                ##
+##     Diogo Monteiro  - 97606                                                ##
+##     Afonso Campos   - 100055                                               ##
+##                                                                            ##
+##   Special thanks a estes dois grupos, com os quais discutimos o trabalho:  ##
+##     Dinis Lei      - 98452                                                 ##
+##     Camila Fonseca - 97880                                                 ##
+##     Isabel Rosário - 93343                                                 ##
+##                                                                            ##
+##     Rodrigo Lima   - 98475                                                 ##
+##     Diana Oliveira - 98607                                                 ##
+##     João Borges    - 98155                                                 ##
+##                                                                            ##
+################################################################################
+
 import asyncio
 from collections import Counter
 from copy import deepcopy
